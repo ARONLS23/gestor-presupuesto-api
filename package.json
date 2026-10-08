@@ -23,7 +23,8 @@
     "dotenv": "^18.0.6",
     "express": "^5.2.1",
     "pg": "^8.23.1",
-    "undici-types": "^8.9.0"
+    "undici-types": "^8.9.0",
+    "zod": "^4.6.5"
   },
   "keywords": [],
   "type": "module"
