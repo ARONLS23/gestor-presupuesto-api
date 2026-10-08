@@ -18,3 +18,12 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+/generated/prisma
+
+# Skills de IA
+.agents/
+.claude/
+.windsurf/
+.vscode/
+skills-lock.json

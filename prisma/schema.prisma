@@ -1,0 +1,90 @@
+generator client {
+  provider               = "prisma-client"
+  output                 = "../generated/prisma"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension    = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TipoMovimiento {
+  INGRESO
+  GASTO
+  AHORRO
+}
+
+model Usuario {
+  id           String        @id @default(uuid())
+  nombre       String
+  email        String        @unique
+  passwordHash String
+  moneda       String        @default("PEN")
+  creadoEn     DateTime      @default(now())
+  categorias   Categoria[]
+  movimientos  Movimiento[]
+  presupuestos Presupuesto[]
+}
+
+model Categoria {
+  id            String         @id @default(uuid())
+  usuarioId     String
+  nombre        String
+  tipo          TipoMovimiento
+  color         String?
+  icono         String?
+  orden         Int            @default(0)
+  activa        Boolean        @default(true)
+  usuario       Usuario        @relation(fields: [usuarioId], references: [id])
+  subcategorias Subcategoria[]
+  presupuestos  Presupuesto[]
+
+  @@unique([usuarioId, nombre, tipo])
+}
+
+model Subcategoria {
+  id          String       @id @default(uuid())
+  categoriaId String
+  nombre      String
+  activa      Boolean      @default(true)
+  categoria   Categoria    @relation(fields: [categoriaId], references: [id])
+  movimientos Movimiento[]
+
+  @@unique([categoriaId, nombre])
+}
+
+model Movimiento {
+  id             String         @id @default(uuid())
+  usuarioId      String
+  subcategoriaId String
+  tipo           TipoMovimiento
+  fecha          DateTime       @db.Date
+  descripcion    String
+  comercio       String?
+  cuenta         String?
+  /// Siempre positivo; el signo lo da el tipo
+  monto          Decimal        @db.Decimal(12, 2)
+  notas          String?
+  creadoEn       DateTime       @default(now())
+  actualizadoEn  DateTime       @updatedAt
+  usuario        Usuario        @relation(fields: [usuarioId], references: [id])
+  subcategoria   Subcategoria   @relation(fields: [subcategoriaId], references: [id])
+
+  @@index([usuarioId, fecha])
+}
+
+model Presupuesto {
+  id          String    @id @default(uuid())
+  usuarioId   String
+  categoriaId String
+  anio        Int
+  /// 1..12
+  mes         Int
+  limite      Decimal   @db.Decimal(12, 2)
+  usuario     Usuario   @relation(fields: [usuarioId], references: [id])
+  categoria   Categoria @relation(fields: [categoriaId], references: [id])
+
+  @@unique([usuarioId, categoriaId, anio, mes])
+}
