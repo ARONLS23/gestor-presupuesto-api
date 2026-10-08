@@ -1,0 +1,54 @@
+### Registro
+POST http://localhost:3000/api/auth/registro
+Content-Type: application/json
+
+{
+  "nombre": "Aron",
+  "email": "aron@example.com",
+  "password": "MiClave123"
+}
+
+### Login
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "aron@example.com",
+  "password": "MiClave123"
+}
+
+### Usuario actual
+GET http://localhost:3000/api/auth/me
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+
+### Email repetido
+POST http://localhost:3000/api/auth/registro
+Content-Type: application/json
+
+{
+  "nombre": "Otro",
+  "email": "aron@example.com",
+  "password": "MiClave123"
+}
+
+### Contraseña incorrecta
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "aron@example.com",
+  "password": "incorrecta"
+}
+
+### Datos inválidos
+POST http://localhost:3000/api/auth/registro
+Content-Type: application/json
+
+{
+  "nombre": "",
+  "email": "no-es-email",
+  "password": "123"
+}
+
+### Usuario actual sin token
+GET http://localhost:3000/api/auth/me
