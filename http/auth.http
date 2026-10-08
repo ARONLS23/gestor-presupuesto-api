@@ -1,5 +1,5 @@
 ### Registro
-POST http://localhost:3000/api/auth/registro
+POST http://localhost:4000/api/auth/registro
 Content-Type: application/json
 
 {
@@ -9,7 +9,7 @@ Content-Type: application/json
 }
 
 ### Login
-POST http://localhost:3000/api/auth/login
+POST http://localhost:4000/api/auth/login
 Content-Type: application/json
 
 {
@@ -18,11 +18,11 @@ Content-Type: application/json
 }
 
 ### Usuario actual
-GET http://localhost:3000/api/auth/me
+GET http://localhost:4000/api/auth/me
 Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
 
 ### Email repetido
-POST http://localhost:3000/api/auth/registro
+POST http://localhost:4000/api/auth/registro
 Content-Type: application/json
 
 {
@@ -32,7 +32,7 @@ Content-Type: application/json
 }
 
 ### Contraseña incorrecta
-POST http://localhost:3000/api/auth/login
+POST http://localhost:4000/api/auth/login
 Content-Type: application/json
 
 {
@@ -41,7 +41,7 @@ Content-Type: application/json
 }
 
 ### Datos inválidos
-POST http://localhost:3000/api/auth/registro
+POST http://localhost:4000/api/auth/registro
 Content-Type: application/json
 
 {
@@ -51,4 +51,4 @@ Content-Type: application/json
 }
 
 ### Usuario actual sin token
-GET http://localhost:3000/api/auth/me
+GET http://localhost:4000/api/auth/me
