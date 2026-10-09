@@ -3,6 +3,7 @@ import { Prisma } from '../../../generated/prisma/client.ts';
 import { firmarToken } from '../../config/jwt.ts';
 import { prisma } from '../../config/prisma.ts';
 import { HttpError } from '../../middlewares/errores.ts';
+import { categoriasIniciales } from '../categorias/categorias-iniciales.ts';
 import type { LoginInput, RegistroInput } from './auth.schemas.ts';
 
 const usuarioPublico = {
@@ -16,7 +17,12 @@ const usuarioPublico = {
 export const registrar = async ({ nombre, email, password }: RegistroInput) => {
   try {
     const usuario = await prisma.usuario.create({
-      data: { nombre, email, passwordHash: await hash(password, 12) },
+      data: {
+        nombre,
+        email,
+        passwordHash: await hash(password, 12),
+        categorias: { create: categoriasIniciales },
+      },
       select: usuarioPublico,
     });
     return { usuario, token: firmarToken(usuario.id) };
