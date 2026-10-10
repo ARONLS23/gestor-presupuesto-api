@@ -1,8 +1,9 @@
 import { compare, hash } from 'bcryptjs';
-import { Prisma } from '../../../generated/prisma/client.ts';
+import type { Prisma } from '../../../generated/prisma/client.ts';
 import { firmarToken } from '../../config/jwt.ts';
 import { prisma } from '../../config/prisma.ts';
 import { HttpError } from '../../middlewares/errores.ts';
+import { esDuplicado } from '../../utils/prisma-errores.ts';
 import { categoriasIniciales } from '../categorias/categorias-iniciales.ts';
 import type { LoginInput, RegistroInput } from './auth.schemas.ts';
 
@@ -27,9 +28,7 @@ export const registrar = async ({ nombre, email, password }: RegistroInput) => {
     });
     return { usuario, token: firmarToken(usuario.id) };
   } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      throw new HttpError(409, 'El email ya está registrado');
-    }
+    if (esDuplicado(err)) throw new HttpError(409, 'El email ya está registrado');
     throw err;
   }
 };

@@ -2,6 +2,7 @@ import express, { type Express, type Request, type Response } from 'express';
 import { manejarErrores, rutaNoEncontrada } from './middlewares/errores.ts';
 import { authRouter } from './modules/auth/auth.routes.ts';
 import { categoriasRouter } from './modules/categorias/categorias.routes.ts';
+import { subcategoriasRouter } from './modules/subcategorias/subcategorias.routes.ts';
 
 export const app: Express = express();
 
@@ -13,6 +14,7 @@ app.get('/', (req: Request, res: Response) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/categorias', categoriasRouter);
+app.use('/api/subcategorias', subcategoriasRouter);
 
 app.use(rutaNoEncontrada);
 app.use(manejarErrores);

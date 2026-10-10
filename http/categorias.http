@@ -1,3 +1,52 @@
 ### Listar mis categorías
 GET http://localhost:4000/api/categorias
 Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+
+### Crear categoría
+POST http://localhost:4000/api/categorias
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+Content-Type: application/json
+
+{
+  "nombre": "Mascotas",
+  "tipo": "GASTO",
+  "icono": "pets",
+  "subcategorias": ["Comida", "Veterinario"]
+}
+
+### Editar categoría
+PUT http://localhost:4000/api/categorias/PEGA_AQUI_EL_ID_DE_LA_CATEGORIA
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+Content-Type: application/json
+
+{
+  "nombre": "Mascota",
+  "color": "#10B981"
+}
+
+### Eliminar categoría
+DELETE http://localhost:4000/api/categorias/PEGA_AQUI_EL_ID_DE_LA_CATEGORIA
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+
+### Crear subcategoría
+POST http://localhost:4000/api/subcategorias
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+Content-Type: application/json
+
+{
+  "categoriaId": "PEGA_AQUI_EL_ID_DE_LA_CATEGORIA",
+  "nombre": "Juguetes"
+}
+
+### Editar subcategoría
+PUT http://localhost:4000/api/subcategorias/PEGA_AQUI_EL_ID_DE_LA_SUBCATEGORIA
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+Content-Type: application/json
+
+{
+  "nombre": "Accesorios"
+}
+
+### Eliminar subcategoría
+DELETE http://localhost:4000/api/subcategorias/PEGA_AQUI_EL_ID_DE_LA_SUBCATEGORIA
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
