@@ -58,7 +58,9 @@ describe('presupuestos', () => {
       gastado: '1555.00',
       disponible: '345.00',
       porcentaje: 81.8,
+      estado: 'ATENCION',
       gastoSinPresupuesto: '50.00',
+      gastadoTotal: '1605.00',
     });
   });
 

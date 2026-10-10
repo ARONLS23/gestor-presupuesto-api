@@ -95,6 +95,8 @@ export const listarPresupuestos = async (usuarioId: string, periodo: Periodo) =>
       };
     });
 
+  const porcentajeTotal = porcentaje(gastadoConLimite, presupuestado);
+
   return {
     ...periodo,
     ritmo: tiempo,
@@ -102,8 +104,10 @@ export const listarPresupuestos = async (usuarioId: string, periodo: Periodo) =>
       presupuestado: presupuestado.toFixed(2),
       gastado: gastadoConLimite.toFixed(2),
       disponible: presupuestado.minus(gastadoConLimite).toFixed(2),
-      porcentaje: porcentaje(gastadoConLimite, presupuestado),
+      porcentaje: porcentajeTotal,
+      estado: estado(porcentajeTotal),
       gastoSinPresupuesto: gastadoSinLimite.toFixed(2),
+      gastadoTotal: gastadoConLimite.plus(gastadoSinLimite).toFixed(2),
     },
     categorias: filas,
   };
