@@ -1,0 +1,38 @@
+### Listar movimientos del mes
+GET http://localhost:4000/api/movimientos?anio=2026&mes=10
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+
+### Listar con filtros, orden y paginación
+GET http://localhost:4000/api/movimientos?anio=2026&tipo=GASTO&q=super&orden=monto_desc&page=1&size=5
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+
+### Ver un movimiento
+GET http://localhost:4000/api/movimientos/PEGA_AQUI_EL_ID_DEL_MOVIMIENTO
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+
+### Crear movimiento
+POST http://localhost:4000/api/movimientos
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+Content-Type: application/json
+
+{
+  "subcategoriaId": "PEGA_AQUI_EL_ID_DE_LA_SUBCATEGORIA",
+  "fecha": "2026-10-15",
+  "descripcion": "Almuerzo",
+  "comercio": "Restaurante",
+  "monto": "45.50"
+}
+
+### Editar movimiento
+PUT http://localhost:4000/api/movimientos/PEGA_AQUI_EL_ID_DEL_MOVIMIENTO
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+Content-Type: application/json
+
+{
+  "monto": "52.00",
+  "notas": "Incluye propina"
+}
+
+### Eliminar movimiento
+DELETE http://localhost:4000/api/movimientos/PEGA_AQUI_EL_ID_DEL_MOVIMIENTO
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
