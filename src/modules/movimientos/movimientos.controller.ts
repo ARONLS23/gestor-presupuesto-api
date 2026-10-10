@@ -1,9 +1,13 @@
 import type { RequestHandler } from 'express';
-import { listarMovimientosSchema } from './movimientos.schemas.ts';
+import { listarMovimientosSchema, totalesMovimientosSchema } from './movimientos.schemas.ts';
 import * as movimientosService from './movimientos.service.ts';
 
 export const listar: RequestHandler = async (req, res) => {
   res.json(await movimientosService.listarMovimientos(req.usuarioId!, listarMovimientosSchema.parse(req.query)));
+};
+
+export const totales: RequestHandler = async (req, res) => {
+  res.json(await movimientosService.totalesMovimientos(req.usuarioId!, totalesMovimientosSchema.parse(req.query)));
 };
 
 export const obtener: RequestHandler<{ id: string }> = async (req, res) => {

@@ -56,6 +56,24 @@ describe('movimientos', () => {
     expect(res.body.items[0].fecha).toBe('2026-03-10');
   });
 
+  it('calcula los totales del filtro', async () => {
+    const res = await request(app).get('/api/movimientos/totales?anio=2026&mes=3').set(auth());
+
+    expect(res.body).toEqual({
+      ingresos: '4200.00',
+      gastos: '1450.50',
+      ahorro: '600.00',
+      balance: '2149.50',
+      cantidad: { INGRESO: 1, GASTO: 2, AHORRO: 1, total: 4 },
+    });
+  });
+
+  it('devuelve totales en cero cuando no hay movimientos', async () => {
+    const res = await request(app).get('/api/movimientos/totales?anio=2020').set(auth());
+
+    expect(res.body).toMatchObject({ ingresos: '0.00', gastos: '0.00', ahorro: '0.00', balance: '0.00' });
+  });
+
   it('filtra por tipo, categoría y texto', async () => {
     expect((await listar('tipo=INGRESO')).body.total).toBe(1);
     expect((await listar(`categoriaId=${hogarId}`)).body.total).toBe(1);

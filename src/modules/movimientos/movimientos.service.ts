@@ -1,7 +1,12 @@
-import type { Prisma } from '../../../generated/prisma/client.ts';
+import { Prisma } from '../../../generated/prisma/client.ts';
 import { prisma } from '../../config/prisma.ts';
 import { HttpError } from '../../middlewares/errores.ts';
-import type { ActualizarMovimientoInput, CrearMovimientoInput, FiltrosMovimientos } from './movimientos.schemas.ts';
+import type {
+  ActualizarMovimientoInput,
+  CrearMovimientoInput,
+  FiltrosMovimientos,
+  FiltrosTotales,
+} from './movimientos.schemas.ts';
 
 const movimientoPublico = {
   id: true,
@@ -38,10 +43,7 @@ const ordenes: Record<FiltrosMovimientos['orden'], Prisma.MovimientoOrderByWithR
   monto_asc: [{ monto: 'asc' }, { fecha: 'desc' }],
 };
 
-export function filtroMovimientos(
-  usuarioId: string,
-  { anio, mes, tipo, categoriaId, q }: Pick<FiltrosMovimientos, 'anio' | 'mes' | 'tipo' | 'categoriaId' | 'q'>,
-) {
+export function filtroMovimientos(usuarioId: string, { anio, mes, tipo, categoriaId, q }: FiltrosTotales) {
   const where: Prisma.MovimientoWhereInput = { usuarioId, tipo };
 
   if (anio) {
@@ -76,6 +78,36 @@ export const listarMovimientos = async (usuarioId: string, filtros: FiltrosMovim
   ]);
 
   return { items: items.map(aRespuesta), total, page, size, paginas: Math.ceil(total / size) };
+};
+
+export const totalesMovimientos = async (usuarioId: string, filtros: FiltrosTotales) => {
+  const grupos = await prisma.movimiento.groupBy({
+    by: ['tipo'],
+    where: filtroMovimientos(usuarioId, filtros),
+    _sum: { monto: true },
+    _count: true,
+  });
+
+  const porTipo = (tipo: 'INGRESO' | 'GASTO' | 'AHORRO') => grupos.find((g) => g.tipo === tipo);
+  const suma = (tipo: 'INGRESO' | 'GASTO' | 'AHORRO') => porTipo(tipo)?._sum.monto ?? new Prisma.Decimal(0);
+  const cantidad = (tipo: 'INGRESO' | 'GASTO' | 'AHORRO') => porTipo(tipo)?._count ?? 0;
+
+  const ingresos = suma('INGRESO');
+  const gastos = suma('GASTO');
+  const ahorro = suma('AHORRO');
+
+  return {
+    ingresos: ingresos.toFixed(2),
+    gastos: gastos.toFixed(2),
+    ahorro: ahorro.toFixed(2),
+    balance: ingresos.minus(gastos).minus(ahorro).toFixed(2),
+    cantidad: {
+      INGRESO: cantidad('INGRESO'),
+      GASTO: cantidad('GASTO'),
+      AHORRO: cantidad('AHORRO'),
+      total: cantidad('INGRESO') + cantidad('GASTO') + cantidad('AHORRO'),
+    },
+  };
 };
 
 async function obtenerPropio(usuarioId: string, id: string) {
