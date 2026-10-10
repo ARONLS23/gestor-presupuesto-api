@@ -1,0 +1,3 @@
+### Reporte anual
+GET http://localhost:4000/api/reportes/anual?anio=2026
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
