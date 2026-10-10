@@ -1,5 +1,4 @@
 import { z } from 'zod';
+import { anio } from '../../utils/esquemas.ts';
 
-export const reporteAnualSchema = z.object({
-  anio: z.coerce.number().int().min(2000).max(2100),
-});
+export const reporteAnualSchema = z.object({ anio });

@@ -1,0 +1,26 @@
+### Presupuesto del mes
+GET http://localhost:4000/api/presupuestos?anio=2026&mes=10
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+
+### Guardar límites (null elimina el límite)
+PUT http://localhost:4000/api/presupuestos
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+Content-Type: application/json
+
+{
+  "anio": 2026,
+  "mes": 10,
+  "limites": [
+    { "categoriaId": "PEGA_AQUI_EL_ID_DE_LA_CATEGORIA", "limite": "1500.00" }
+  ]
+}
+
+### Copiar el presupuesto del mes anterior
+POST http://localhost:4000/api/presupuestos/copiar
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+Content-Type: application/json
+
+{
+  "anio": 2026,
+  "mes": 11
+}

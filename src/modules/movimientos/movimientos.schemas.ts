@@ -1,9 +1,6 @@
 import { z } from 'zod';
+import { anio, mes, monto } from '../../utils/esquemas.ts';
 
-const monto = z
-  .union([z.string(), z.number()])
-  .transform(String)
-  .refine((v) => /^\d{1,10}(\.\d{1,2})?$/.test(v) && Number(v) > 0, 'Ingresa un monto mayor a 0 con hasta 2 decimales');
 const textoOpcional = z.string().trim().max(100).nullable().optional();
 
 export const crearMovimientoSchema = z.object({
@@ -19,8 +16,8 @@ export const crearMovimientoSchema = z.object({
 export const actualizarMovimientoSchema = crearMovimientoSchema.partial();
 
 export const listarMovimientosSchema = z.object({
-  anio: z.coerce.number().int().min(2000).max(2100).optional(),
-  mes: z.coerce.number().int().min(1).max(12).optional(),
+  anio: anio.optional(),
+  mes: mes.optional(),
   tipo: z.enum(['INGRESO', 'GASTO', 'AHORRO']).optional(),
   categoriaId: z.string().min(1).optional(),
   q: z.string().trim().min(1).max(100).optional(),
