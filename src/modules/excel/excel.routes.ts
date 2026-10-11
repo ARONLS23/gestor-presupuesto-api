@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { requireAuth } from '../../middlewares/auth.ts';
 import * as excelController from './excel.controller.ts';
 
@@ -7,4 +7,8 @@ export const excelRouter = Router();
 excelRouter.use(requireAuth);
 
 excelRouter.get('/exportar', excelController.exportar);
+excelRouter.get('/plantilla', excelController.plantilla);
 excelRouter.get('/movimientos', excelController.movimientos);
+
+excelRouter.post('/importar/previa', express.raw({ type: () => true, limit: '5mb' }), excelController.previaImportacion);
+excelRouter.post('/importar', excelController.importar);

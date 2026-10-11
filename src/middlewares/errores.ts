@@ -28,6 +28,11 @@ export const manejarErrores: ErrorRequestHandler = (err, _req, res, _next) => {
     return;
   }
 
+  if (err.type === 'entity.too.large') {
+    res.status(413).json({ mensaje: 'El archivo supera el tamaño máximo permitido (5 MB)' });
+    return;
+  }
+
   if (err instanceof HttpError) {
     res.status(err.status).json({ mensaje: err.message });
     return;

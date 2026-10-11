@@ -2,6 +2,14 @@ import request from 'supertest';
 import { app } from '../src/app.ts';
 import { prisma } from '../src/config/prisma.ts';
 
+type Parser = Extract<Parameters<request.Test['parse']>[0], (res: never, listo: never) => void>;
+
+export const binario: Parser = (res, listo) => {
+  const partes: Buffer[] = [];
+  res.on('data', (parte: Buffer) => partes.push(parte));
+  res.on('end', () => listo(null, Buffer.concat(partes)));
+};
+
 export async function crearUsuarioTemporal() {
   const email = `test-${Date.now()}-${Math.round(Math.random() * 1e6)}@example.com`;
   const res = await request(app).post('/api/auth/registro').send({ nombre: 'Test', email, password: 'MiClave123' });

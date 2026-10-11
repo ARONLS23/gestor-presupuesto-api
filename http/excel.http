@@ -1,7 +1,33 @@
-### Exportar la vista anual a Excel
-GET http://localhost:4000/api/excel/exportar?anio=2026
+### Exportar reporte a Excel (alcance: anual, trimestral o mensual)
+GET http://localhost:4000/api/excel/exportar?anio=2026&mes=10&alcance=trimestral
 Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
 
 ### Exportar movimientos filtrados a Excel
 GET http://localhost:4000/api/excel/movimientos?anio=2026&mes=10&tipo=GASTO
 Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+
+### Plantilla vacía para importar (alcance: anual o mensual)
+GET http://localhost:4000/api/excel/plantilla?anio=2026&mes=11&alcance=mensual
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+
+### Vista previa de importación
+POST http://localhost:4000/api/excel/importar/previa?anio=2026&alcance=anual
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+
+< ../../Presupuesto plantilla.xlsx
+
+### Guardar la importación con las filas revisadas en la vista previa (montos de Ene a Dic, "" = sin monto).
+### Solo agrega movimientos. Usa un subcategoriaId real de GET /api/categorias
+POST http://localhost:4000/api/excel/importar
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+Content-Type: application/json
+
+{
+  "anio": 2026,
+  "alcance": "mensual",
+  "meses": [11],
+  "filas": [
+    { "subcategoriaId": "PEGA_AQUI_EL_ID", "montos": ["", "", "", "", "", "", "", "", "", "", "1200.00", ""] }
+  ]
+}

@@ -3,7 +3,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { app } from '../src/app.ts';
 import { prisma } from '../src/config/prisma.ts';
-import { borrarUsuario, crearUsuarioTemporal } from './helpers.ts';
+import { binario, borrarUsuario, crearUsuarioTemporal } from './helpers.ts';
 
 let usuario: Awaited<ReturnType<typeof crearUsuarioTemporal>>;
 let libro: ExcelJS.Workbook;
@@ -20,11 +20,7 @@ async function descargar(ruta: string, nombre: string) {
     .get(ruta)
     .set(auth())
     .buffer(true)
-    .parse((r, listo) => {
-      const partes: Buffer[] = [];
-      r.on('data', (p: Buffer) => partes.push(p));
-      r.on('end', () => listo(null, Buffer.concat(partes)));
-    });
+    .parse(binario);
   expect(res.status).toBe(200);
   expect(res.headers['content-type']).toContain('spreadsheetml');
   expect(res.headers['content-disposition']).toContain(nombre);
@@ -93,6 +89,34 @@ describe('exportar vista anual a Excel', () => {
   it('hoja Resumen: tabla de ingresos por categoría', () => {
     expect(fila('Resumen', 'Salarios').getCell(3).value).toBe(4200);
     expect(resultado(fila('Resumen', 'Total').getCell(15))).toBe(4500.5);
+  });
+
+  it('trimestral: solo los 3 meses del trimestre y columna Total', async () => {
+    const trimestre = await descargar('/api/excel/exportar?anio=2026&mes=2&alcance=trimestral', 'presupuesto-2026-T1.xlsx');
+    const gasto = trimestre.getWorksheet('Gasto')!;
+    expect([2, 3, 4, 5, 6, 7, 8].map((c) => gasto.getRow(3).getCell(c).value)).toEqual(['Categoría', 'Subcategoría', 'Ene', 'Feb', 'Marzo', 'Total', null]);
+    expect(gasto.getCell('B1').value).toBe('Presupuesto personal T1 2026');
+
+    const resumen = trimestre.getWorksheet('Resumen')!;
+    const efectivo = resumen.getRows(1, 10)!.find((r) => r.getCell(2).value === 'Efectivo libre')!;
+    expect(resultado(efectivo.getCell(6))).toBe(2550.25);
+  });
+
+  it('mensual: una columna con el mes y sin columna total', async () => {
+    const marzo = await descargar('/api/excel/exportar?anio=2026&mes=3&alcance=mensual', 'presupuesto-2026-03.xlsx');
+    const gasto = marzo.getWorksheet('Gasto')!;
+    const vida = gasto.getRows(1, 20)!.find((r) => r.getCell(2).value === 'Vida diaria')!;
+    expect(gasto.getRow(3).getCell(4).value).toBe('Marzo');
+    expect(gasto.getRow(3).getCell(5).value).toBeNull();
+    expect(vida.getCell(4).value).toBe(150.25);
+  });
+
+  it('plantilla vacía para importar (mensual)', async () => {
+    const plantilla = await descargar('/api/excel/plantilla?anio=2026&mes=11&alcance=mensual', 'plantilla-mensual-2026-11.xlsx');
+    const gasto = plantilla.getWorksheet('Gasto')!;
+    const hogar = gasto.getRows(1, 20)!.find((r) => r.getCell(2).value === 'Hogar')!;
+    expect(gasto.getRow(3).getCell(4).value).toBe('Nov');
+    expect(hogar.getCell(4).value).toBeNull();
   });
 
   it('valida el año', async () => {

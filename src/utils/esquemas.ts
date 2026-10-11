@@ -6,7 +6,9 @@ export const mes = z.coerce.number().int().min(1).max(12);
 export const periodoSchema = z.object({ anio, mes });
 export type Periodo = z.infer<typeof periodoSchema>;
 
+export const FORMATO_MONTO = /^\d{1,10}(\.\d{1,2})?$/;
+
 export const monto = z
   .union([z.string(), z.number()])
   .transform(String)
-  .refine((v) => /^\d{1,10}(\.\d{1,2})?$/.test(v) && Number(v) > 0, 'Ingresa un monto mayor a 0 con hasta 2 decimales');
+  .refine((v) => FORMATO_MONTO.test(v) && Number(v) > 0, 'Ingresa un monto mayor a 0 con hasta 2 decimales');
