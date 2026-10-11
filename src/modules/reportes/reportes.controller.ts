@@ -20,3 +20,7 @@ export const kpis: RequestHandler = async (req, res) => {
   const { alcance, ...periodo } = kpisSchema.parse(req.query);
   res.json(await reportesService.kpis(req.usuarioId!, periodo, alcance));
 };
+
+export const saldo: RequestHandler = async (req, res) => {
+  res.json(await reportesService.saldo(req.usuarioId!));
+};

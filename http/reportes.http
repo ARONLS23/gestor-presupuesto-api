@@ -14,3 +14,7 @@ Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
 ### KPIs del trimestre (alcance: mensual, trimestral o anual)
 GET http://localhost:4000/api/reportes/kpis?anio=2026&mes=10&alcance=trimestral
 Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+
+### Saldo disponible (acumulado hasta hoy)
+GET http://localhost:4000/api/reportes/saldo
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN

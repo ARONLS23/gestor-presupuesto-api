@@ -10,3 +10,4 @@ reportesRouter.get('/anual', reportesController.anual);
 reportesRouter.get('/resumen-mensual', reportesController.resumenMensual);
 reportesRouter.get('/historico', reportesController.historico);
 reportesRouter.get('/kpis', reportesController.kpis);
+reportesRouter.get('/saldo', reportesController.saldo);

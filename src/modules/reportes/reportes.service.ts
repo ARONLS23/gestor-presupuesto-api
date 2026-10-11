@@ -1,7 +1,7 @@
 import { Prisma, type TipoMovimiento } from '../../../generated/prisma/client.ts';
 import { prisma } from '../../config/prisma.ts';
 import type { Periodo } from '../../utils/esquemas.ts';
-import { moverMes, rangoDeAlcance, type Alcance } from '../../utils/fechas.ts';
+import { hoy, moverMes, rangoDeAlcance, type Alcance } from '../../utils/fechas.ts';
 import { filtroMovimientos, totalesEnRango } from '../movimientos/movimientos.service.ts';
 
 type Fila = { meses: Prisma.Decimal[]; total: Prisma.Decimal };
@@ -182,4 +182,10 @@ export const historico = async (usuarioId: string, { meses, ...periodo }: Period
   });
 
   return { meses: filas, promedioAhorro: ahorroTotal.div(meses).toFixed(2) };
+};
+
+export const saldo = async (usuarioId: string) => {
+  const { anio, mes, dia } = hoy();
+  const { balance } = await totalesEnRango(usuarioId, new Date(0), new Date(Date.UTC(anio, mes - 1, dia + 1)));
+  return { saldo: balance };
 };

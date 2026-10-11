@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { app } from '../src/app.ts';
 import { prisma } from '../src/config/prisma.ts';
 import { borrarUsuario, crearUsuarioTemporal } from './helpers.ts';
@@ -139,6 +139,15 @@ describe('reporte anual (fórmulas del Excel)', () => {
     expect(kpis.alcance).toBe('mensual');
     expect(kpis.totales).toEqual(resumen.totales);
     expect(kpis.variacion).toEqual(resumen.variacion);
+  });
+
+  it('saldo: ingresos − gastos − ahorro acumulados hasta hoy (hora de Lima)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-02-01T04:00:00Z'));
+    const { body } = await request(app).get('/api/reportes/saldo').set(auth());
+    vi.useRealTimers();
+
+    expect(body).toEqual({ saldo: '1451.50' });
   });
 
   it('valida el año', async () => {
