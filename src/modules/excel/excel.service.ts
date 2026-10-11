@@ -106,15 +106,23 @@ function escribirTabla(hoja: ExcelJS.Worksheet, inicio: number, columnas: string
   return filaTotal;
 }
 
+const COLUMNAS_TABLA = ['Categoría', 'Subcategoría'];
+// Los meses empiezan después de las columnas Categoría y Subcategoría (columna D) en ambas hojas.
+const COL_PRIMER_MES = 2 + COLUMNAS_TABLA.length;
+
+const filasPorSubcategoria = (seccion: Reporte['secciones'][number]) =>
+  seccion.categorias.flatMap((c) => c.subcategorias.map((s) => ({ ...s, etiquetas: [c.nombre, s.nombre] })));
+
+const anchosMatriz = (rango: Rango) => [{ width: 2.7 }, { width: 22 }, { width: 22 }, ...encabezadosMes(rango).map(() => ({ width: 12.5 }))];
+
 function hojaGasto(hoja: ExcelJS.Worksheet, reporte: Reporte, rango: Rango, nombre: string) {
-  hoja.columns = [{ width: 2.7 }, { width: 22 }, { width: 22 }, ...encabezadosMes(rango).map(() => ({ width: 12.5 }))];
+  hoja.columns = anchosMatriz(rango);
   titulo(hoja, 1, nombre);
 
   const tabla = (tipo: 'GASTO' | 'AHORRO', inicio: number) => {
     const seccion = reporte.secciones.find((s) => s.tipo === tipo)!;
     titulo(hoja, inicio, seccion.nombre, 14);
-    const filas = seccion.categorias.flatMap((c) => c.subcategorias.map((s) => ({ ...s, etiquetas: [c.nombre, s.nombre] })));
-    return escribirTabla(hoja, inicio + 1, ['Categoría', 'Subcategoría'], filas, seccion.totales, rango);
+    return escribirTabla(hoja, inicio + 1, COLUMNAS_TABLA, filasPorSubcategoria(seccion), seccion.totales, rango);
   };
 
   const totalGastos = tabla('GASTO', 2);
@@ -129,25 +137,24 @@ function hojaResumen(
   rango: Rango,
   nombre: string,
 ) {
-  hoja.columns = [{ width: 2.7 }, { width: 34 }, ...encabezadosMes(rango).map(() => ({ width: 12.5 }))];
+  hoja.columns = anchosMatriz(rango);
   titulo(hoja, 1, nombre);
 
   const ingresos = reporte.secciones.find((s) => s.tipo === 'INGRESO')!;
   titulo(hoja, 7, ingresos.nombre, 14);
-  const filas = ingresos.categorias.map((c) => ({ ...c, etiquetas: [c.nombre] }));
-  const totalIngresos = escribirTabla(hoja, 8, ['Categoría'], filas, ingresos.totales, rango);
+  const totalIngresos = escribirTabla(hoja, 8, COLUMNAS_TABLA, filasPorSubcategoria(ingresos), ingresos.totales, rango);
 
-  const colUltimoMes = 2 + rango.meses.length;
+  const colUltimoMes = COL_PRIMER_MES + rango.meses.length - 1;
   const colFin = rango.total ? colUltimoMes + 1 : colUltimoMes;
   const encabezado = hoja.getRow(2);
-  encabezadosMes(rango).forEach((texto, i) => (encabezado.getCell(3 + i).value = texto));
-  estiloEncabezado(encabezado, 3, colFin);
+  encabezadosMes(rango).forEach((texto, i) => (encabezado.getCell(COL_PRIMER_MES + i).value = texto));
+  estiloEncabezado(encabezado, COL_PRIMER_MES, colFin);
 
   const valor = (tipo: 'GASTO' | 'AHORRO') => reporte.secciones.find((s) => s.tipo === tipo)!.totales;
   const resumen = [
-    { nombre: 'Gastos totales', valores: valor('GASTO'), formula: (i: number) => `Gasto!${letra(4 + i)}${gasto.totalGastos}` },
-    { nombre: 'Ahorro total', valores: valor('AHORRO'), formula: (i: number) => `Gasto!${letra(4 + i)}${gasto.totalAhorro}` },
-    { nombre: 'Efectivo libre', valores: reporte.efectivoNeto, formula: (i: number) => `${letra(3 + i)}${totalIngresos}-${letra(3 + i)}3-${letra(3 + i)}4` },
+    { nombre: 'Gastos totales', valores: valor('GASTO'), formula: (col: string) => `Gasto!${col}${gasto.totalGastos}` },
+    { nombre: 'Ahorro total', valores: valor('AHORRO'), formula: (col: string) => `Gasto!${col}${gasto.totalAhorro}` },
+    { nombre: 'Efectivo libre', valores: reporte.efectivoNeto, formula: (col: string) => `${col}${totalIngresos}-${col}3-${col}4` },
   ];
 
   resumen.forEach(({ nombre, valores, formula }, i) => {
@@ -155,11 +162,16 @@ function hojaResumen(
     const fila = hoja.getRow(n);
     const recortados = recortar(valores, rango);
     fila.getCell(2).value = nombre;
-    recortados.meses.forEach((v, m) => (fila.getCell(3 + m).value = { formula: formula(m), result: Number(v) }));
+    recortados.meses.forEach((v, m) => {
+      fila.getCell(COL_PRIMER_MES + m).value = { formula: formula(letra(COL_PRIMER_MES + m)), result: Number(v) };
+    });
     if (rango.total) {
-      fila.getCell(colFin).value = { formula: `SUM(C${n}:${letra(colUltimoMes)}${n})`, result: Number(recortados.total) };
+      fila.getCell(colFin).value = {
+        formula: `SUM(${letra(COL_PRIMER_MES)}${n}:${letra(colUltimoMes)}${n})`,
+        result: Number(recortados.total),
+      };
     }
-    for (let c = 3; c <= colFin; c++) fila.getCell(c).numFmt = FORMATO_MONTO;
+    for (let c = COL_PRIMER_MES; c <= colFin; c++) fila.getCell(c).numFmt = FORMATO_MONTO;
   });
   estiloTotal(hoja.getRow(5), colFin);
 }

@@ -18,10 +18,12 @@ const enviar = (ruta: string, cuerpo: Buffer, u = usuario) => request(app).post(
 const mes = (valores: Record<number, number | string>) => MESES.map((_, i) => valores[i] ?? 0);
 
 // Plantilla mensual: Categoría (+ Subcategoría) y solo las columnas de los meses a cargar.
-async function plantillaMensual(columnas: string[], gastos: [string, string, ...number[]][], ingresos: [string, ...number[]][] = []) {
+type FilaPlantilla = [string, string, ...number[]];
+
+async function plantillaMensual(columnas: string[], gastos: FilaPlantilla[], ingresos: FilaPlantilla[] = []) {
   const libro = new ExcelJS.Workbook();
   const resumen = libro.addWorksheet('Resumen');
-  resumen.getRow(8).values = [undefined, 'Categoría', ...columnas];
+  resumen.getRow(8).values = [undefined, 'Categoría', 'Subcategoría', ...columnas];
   ingresos.forEach((f, i) => (resumen.getRow(9 + i).values = [undefined, ...f]));
   const gasto = libro.addWorksheet('Gasto');
   gasto.getRow(3).values = [undefined, 'Categoría', 'Subcategoría', ...columnas];
@@ -29,25 +31,26 @@ async function plantillaMensual(columnas: string[], gastos: [string, string, ...
   return Buffer.from(await libro.xlsx.writeBuffer());
 }
 
-// Libro con la estructura de la plantilla: Resumen (Ingresos por categoría) y Gasto (Categoría + Subcategoría).
+// Libro con la estructura de la plantilla: hojas Resumen (Ingresos) y Gasto, con Categoría y Subcategoría.
 async function plantillaConDatos() {
   const libro = new ExcelJS.Workbook();
   const resumen = libro.addWorksheet('Resumen');
-  resumen.getRow(6).values = [undefined, 'Categoría', ...MESES, 'Año'];
-  resumen.getRow(7).values = [undefined, 'Salarios', ...mes({ 0: 4200, 1: 4200 })];
-  resumen.getRow(8).values = [undefined, 'Bonos', ...mes({ 0: 100 })];
+  resumen.getRow(6).values = [undefined, 'Categoría', 'Subcategoría', ...MESES, 'Año'];
+  resumen.getRow(7).values = [undefined, 'Sueldo', 'Sueldo mensual', ...mes({ 0: 4200, 1: 4200 })];
+  resumen.getRow(8).values = [undefined, 'Bonos', 'Extra', ...mes({ 0: 100 })];
   resumen.getRow(9).values = [undefined, 'Total'];
 
   const gasto = libro.addWorksheet('Gasto');
   gasto.getRow(3).values = [undefined, 'Categoría', 'Subcategoría', ...MESES, 'Año'];
-  gasto.getRow(4).values = [undefined, 'Hogar', 'Pensión', ...mes({ 0: 1200 })];
-  gasto.getRow(5).values = [undefined, 'Vida diaria', 'Comestibles ', ...mes({ 2: 300.5 })];
-  gasto.getRow(6).values = [undefined, 'Transporte', 'Gas/combustible', ...mes({})];
-  gasto.getRow(7).values = [undefined, 'Pagos varios', 'Ahorros', ...mes({ 0: 600 })];
-  gasto.getRow(8).values = [undefined, 'Hogar', 'Luz', ...mes({ 0: 80 })];
-  gasto.getRow(9).values = [undefined, 'Salud', 'Consulta médica', ...mes({ 1: 'abc' })];
-  gasto.getRow(10).values = [undefined, 'Total'];
-  gasto.getCell('D10').value = { formula: 'SUM(D4:D9)', result: 1880 };
+  gasto.getRow(4).values = [undefined, 'Vivienda', 'Alquiler o hipoteca', ...mes({ 0: 1200 })];
+  gasto.getRow(5).values = [undefined, 'Alimentación', 'Supermercado ', ...mes({ 2: 300.5 })];
+  gasto.getRow(6).values = [undefined, 'Transporte', 'Combustible', ...mes({})];
+  gasto.getRow(7).values = [undefined, 'Pagos varios', 'Deudas', ...mes({ 0: 50 })];
+  gasto.getRow(8).values = [undefined, 'Vivienda', 'Luz eléctrica', ...mes({ 0: 80 })];
+  gasto.getRow(9).values = [undefined, 'Salud', 'Consultas', ...mes({ 1: 'abc' })];
+  gasto.getRow(10).values = [undefined, 'Ahorro', 'Ahorro general', ...mes({ 0: 600 })];
+  gasto.getRow(11).values = [undefined, 'Total'];
+  gasto.getCell('D11').value = { formula: 'SUM(D4:D10)', result: 1930 };
 
   return Buffer.from(await libro.xlsx.writeBuffer());
 }
@@ -56,7 +59,7 @@ beforeAll(async () => {
   [usuario, otro] = await Promise.all([crearUsuarioTemporal(), crearUsuarioTemporal()]);
   archivo = await plantillaConDatos();
 
-  const hogar = await prisma.subcategoria.findFirst({ where: { nombre: 'Pensión', categoria: { usuarioId: usuario.usuarioId } } });
+  const hogar = await prisma.subcategoria.findFirst({ where: { nombre: 'Alquiler o hipoteca', categoria: { usuarioId: usuario.usuarioId } } });
   await request(app)
     .post('/api/movimientos')
     .set(auth())
@@ -87,28 +90,32 @@ const guardar = (previa: Previa, filas = filasValidas(previa), u = usuario) =>
 const fila = (previa: Previa, categoria: string, subcategoria?: string) =>
   previa.filas.find((f) => f.categoria === categoria && (subcategoria === undefined || f.subcategoria === subcategoria))!;
 
-const subcategoriaDe = async (categoria: string) =>
-  (await prisma.subcategoria.findFirst({ where: { categoria: { nombre: categoria, usuarioId: usuario.usuarioId } } }))!.id;
+const subcategoria = async (nombre: string) =>
+  (await prisma.subcategoria.findFirst({ where: { nombre, categoria: { usuarioId: usuario.usuarioId } } }))!.id;
 
 describe('importar plantilla de Excel', () => {
-  it('la plantilla original (sin montos) lista sus filas vacías', async () => {
+  it('la plantilla original lista sus filas vacías y avisa que sus categorías no existen', async () => {
     const original = await readFile(new URL('../../Presupuesto plantilla.xlsx', import.meta.url));
 
     const previa = await ver(original);
     expect(previa.filas).toHaveLength(11);
     expect(previa.filas.every((f) => f.montos.every((m) => m === ''))).toBe(true);
-    expect(previa.filas.every((f) => f.subcategoriaId)).toBe(true);
+    expect(previa.filas.every((f) => !f.subcategoriaId && f.aviso)).toBe(true);
   });
 
   it('vista previa: cada fila con su subcategoría o el aviso de por qué no la tiene, sin guardar nada', async () => {
     const previa = await ver(archivo);
 
     expect(previa.meses).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-    expect(fila(previa, 'Salarios').subcategoriaId).toBe(await subcategoriaDe('Salarios'));
-    expect(fila(previa, 'Pagos varios').subcategoriaId).toBe(await subcategoriaDe('Ahorros'));
-    expect(fila(previa, 'Vida diaria').montos[2]).toBe('300.50');
+    expect(fila(previa, 'Sueldo').subcategoriaId).toBe(await subcategoria('Sueldo mensual'));
+    expect(fila(previa, 'Alimentación').subcategoriaId).toBe(await subcategoria('Supermercado'));
+    expect(fila(previa, 'Alimentación').montos[2]).toBe('300.50');
+    expect(fila(previa, 'Pagos varios')).toMatchObject({ subcategoriaId: null, aviso: 'La categoría "Deudas" tiene varias subcategorías' });
     expect(fila(previa, 'Bonos')).toMatchObject({ subcategoriaId: null, aviso: 'La categoría "Bonos" no existe' });
-    expect(fila(previa, 'Hogar', 'Luz')).toMatchObject({ subcategoriaId: null, aviso: 'La subcategoría "Luz" no existe en "Hogar"' });
+    expect(fila(previa, 'Vivienda', 'Luz eléctrica')).toMatchObject({
+      subcategoriaId: null,
+      aviso: 'La subcategoría "Luz eléctrica" no existe en "Vivienda"',
+    });
     expect(fila(previa, 'Salud').montos[1]).toBe('abc');
     expect(fila(previa, 'Transporte').montos.every((m) => m === '')).toBe(true);
 
@@ -130,7 +137,7 @@ describe('importar plantilla de Excel', () => {
     const previa = await ver(archivo);
 
     const bonos = fila(previa, 'Bonos');
-    bonos.subcategoriaId = await subcategoriaDe('Varios');
+    bonos.subcategoriaId = await subcategoria('Otros');
     fila(previa, 'Salud').montos[1] = '80';
 
     const res = await guardar(previa);
@@ -144,7 +151,7 @@ describe('importar plantilla de Excel', () => {
   it('rechaza montos no válidos o subcategorías de otra cuenta', async () => {
     const previa = await ver(archivo);
     expect((await guardar(previa, [])).status).toBe(400);
-    const conTexto = [{ subcategoriaId: await subcategoriaDe('Hogar'), montos: ['abc', ...Array(11).fill('')] }];
+    const conTexto = [{ subcategoriaId: await subcategoria('Alquiler o hipoteca'), montos: ['abc', ...Array(11).fill('')] }];
     expect((await guardar(previa, conTexto)).status).toBe(400);
 
     const ajena = (await prisma.subcategoria.findFirst({ where: { categoria: { usuarioId: otro.usuarioId } } }))!.id;
@@ -164,7 +171,7 @@ describe('importar plantilla de Excel', () => {
   });
 
   it('anual exige las 12 columnas de meses', async () => {
-    const soloNoviembre = await plantillaMensual(['Nov'], [['Hogar', 'Pensión', 999]]);
+    const soloNoviembre = await plantillaMensual(['Nov'], [['Vivienda', 'Alquiler o hipoteca', 999]]);
     const res = await enviar('/api/excel/importar/previa?anio=2026&alcance=anual', soloNoviembre);
     expect(res.status).toBe(400);
     expect(res.body.mensaje).toContain('plantilla mensual');
@@ -174,7 +181,10 @@ describe('importar plantilla de Excel', () => {
   });
 
   it('mensual: carga solo los meses del archivo y no toca lo importado de otros meses', async () => {
-    const previa = await ver(await plantillaMensual(['Nov'], [['Hogar', 'Pensión', 999]], [['Salarios', 4200]]), 'mensual');
+    const previa = await ver(
+      await plantillaMensual(['Nov'], [['Vivienda', 'Alquiler o hipoteca', 999]], [['Sueldo', 'Sueldo mensual', 4200]]),
+      'mensual',
+    );
     expect(previa.meses).toEqual([11]);
 
     const res = await guardar(previa);
@@ -185,7 +195,7 @@ describe('importar plantilla de Excel', () => {
   });
 
   it('mensual con varios meses: agrega en cada mes sin tocar lo que ya había', async () => {
-    const previa = await ver(await plantillaMensual(['Marzo', 'Nov'], [['Vida diaria', 'Comestibles', 100, 0]]), 'mensual');
+    const previa = await ver(await plantillaMensual(['Marzo', 'Nov'], [['Alimentación', 'Supermercado', 100, 0]]), 'mensual');
     expect(previa.meses).toEqual([3, 11]);
 
     const res = await guardar(previa);

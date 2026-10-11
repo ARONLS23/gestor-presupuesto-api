@@ -20,7 +20,7 @@ beforeAll(async () => {
   for (const c of categorias) cat[c.nombre] = c.id;
   const sub = (nombre: string) => categorias.find((c) => c.nombre === nombre)!.subcategorias[0]!.id;
 
-  for (const [nombre, monto] of [['Hogar', '1200'], ['Vida diaria', '250'], ['Transporte', '95'], ['Ocio', '10'], ['Salud', '50']]) {
+  for (const [nombre, monto] of [['Vivienda', '1200'], ['Alimentación', '250'], ['Transporte', '95'], ['Ocio', '10'], ['Salud', '50']]) {
     await request(app)
       .post('/api/movimientos')
       .set(auth())
@@ -36,15 +36,15 @@ afterAll(async () => {
 describe('presupuestos', () => {
   it('calcula gasto real, porcentaje y estado por categoría', async () => {
     const res = await guardar(2026, 3, [
-      { categoriaId: cat['Hogar']!, limite: '1500' },
-      { categoriaId: cat['Vida diaria']!, limite: '200' },
+      { categoriaId: cat['Vivienda']!, limite: '1500' },
+      { categoriaId: cat['Alimentación']!, limite: '200' },
       { categoriaId: cat['Transporte']!, limite: '100' },
       { categoriaId: cat['Ocio']!, limite: '100' },
     ]);
 
     expect(res.status).toBe(200);
-    expect(fila(res.body, 'Hogar')).toMatchObject({ limite: '1500.00', gastado: '1200.00', porcentaje: 80, estado: 'ATENCION' });
-    expect(fila(res.body, 'Vida diaria')).toMatchObject({ porcentaje: 125, estado: 'EXCEDIDO' });
+    expect(fila(res.body, 'Vivienda')).toMatchObject({ limite: '1500.00', gastado: '1200.00', porcentaje: 80, estado: 'ATENCION' });
+    expect(fila(res.body, 'Alimentación')).toMatchObject({ porcentaje: 125, estado: 'EXCEDIDO' });
     expect(fila(res.body, 'Transporte')).toMatchObject({ porcentaje: 95, estado: 'CERCA_LIMITE' });
     expect(fila(res.body, 'Ocio')).toMatchObject({ porcentaje: 10, estado: 'EN_RANGO' });
     expect(fila(res.body, 'Salud')).toMatchObject({ limite: null, gastado: '50.00', estado: 'SIN_LIMITE' });
@@ -90,8 +90,8 @@ describe('presupuestos', () => {
     const res = await request(app).post('/api/presupuestos/copiar').set(auth()).send({ anio: 2026, mes: 4 });
 
     expect(res.status).toBe(200);
-    expect(fila(res.body, 'Hogar').limite).toBe('1500.00');
-    expect(fila(res.body, 'Hogar').gastado).toBe('0.00');
+    expect(fila(res.body, 'Vivienda').limite).toBe('1500.00');
+    expect(fila(res.body, 'Vivienda').gastado).toBe('0.00');
   });
 
   it('avisa si el mes anterior no tiene presupuesto', async () => {
@@ -101,7 +101,7 @@ describe('presupuestos', () => {
   });
 
   it('solo permite presupuestar categorías de gasto propias', async () => {
-    expect((await guardar(2026, 3, [{ categoriaId: cat['Salarios']!, limite: '100' }])).status).toBe(400);
+    expect((await guardar(2026, 3, [{ categoriaId: cat['Sueldo']!, limite: '100' }])).status).toBe(400);
     expect((await guardar(2026, 3, [{ categoriaId: 'no-existe', limite: '100' }])).status).toBe(400);
   });
 });

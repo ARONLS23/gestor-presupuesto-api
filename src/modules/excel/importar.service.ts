@@ -78,7 +78,7 @@ function subcategoriaPorDefecto(categoria: Categoria) {
 }
 
 // Relaciona la fila con una subcategoría del usuario por nombre. Si la categoría no existe pero hay
-// una categoría con el nombre de la subcategoría (ej. "Pagos varios → Ahorros"), usa esa.
+// una categoría con el nombre de la subcategoría (ej. "Pagos varios → Ahorro"), usa esa.
 function relacionar(fila: FilaExcel, categorias: Categoria[]) {
   const buscar = (nombre: string) => categorias.find((c) => normalizar(c.nombre) === normalizar(nombre));
   const porSubcategoria = fila.subcategoria ? buscar(fila.subcategoria) : undefined;

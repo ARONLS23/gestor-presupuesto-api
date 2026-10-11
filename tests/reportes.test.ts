@@ -22,20 +22,20 @@ beforeAll(async () => {
   usuario = await crearUsuarioTemporal();
 
   const categorias = await prisma.categoria.findMany({ where: { usuarioId: usuario.usuarioId }, include: { subcategorias: true } });
-  const sub = (nombre: string) => categorias.find((c) => c.nombre === nombre)!.subcategorias[0]!.id;
+  const sub = (nombre: string) => categorias.flatMap((c) => c.subcategorias).find((s) => s.nombre === nombre)!.id;
 
   const movimientos = [
-    { sub: 'Salarios', fecha: '2026-01-01', monto: '4200.00' },
-    { sub: 'Varios', fecha: '2026-01-20', monto: '300.50' },
-    { sub: 'Salarios', fecha: '2026-02-01', monto: '4200.00' },
-    { sub: 'Hogar', fecha: '2026-01-05', monto: '1200.00' },
-    { sub: 'Vida diaria', fecha: '2026-01-07', monto: '150.25' },
-    { sub: 'Vida diaria', fecha: '2026-01-21', monto: '99.75' },
-    { sub: 'Hogar', fecha: '2026-02-05', monto: '1200.00' },
-    { sub: 'Vacaciones', fecha: '2026-12-15', monto: '2000.00' },
-    { sub: 'Ahorros', fecha: '2026-01-02', monto: '600.00' },
-    { sub: 'Hogar', fecha: '2025-12-05', monto: '999.00' },
-    { sub: 'Hogar', fecha: '2027-01-05', monto: '999.00' },
+    { sub: 'Sueldo mensual', fecha: '2026-01-01', monto: '4200.00' },
+    { sub: 'Otros', fecha: '2026-01-20', monto: '300.50' },
+    { sub: 'Sueldo mensual', fecha: '2026-02-01', monto: '4200.00' },
+    { sub: 'Alquiler o hipoteca', fecha: '2026-01-05', monto: '1200.00' },
+    { sub: 'Supermercado', fecha: '2026-01-07', monto: '150.25' },
+    { sub: 'Supermercado', fecha: '2026-01-21', monto: '99.75' },
+    { sub: 'Alquiler o hipoteca', fecha: '2026-02-05', monto: '1200.00' },
+    { sub: 'Viajes', fecha: '2026-12-15', monto: '2000.00' },
+    { sub: 'Ahorro general', fecha: '2026-01-02', monto: '600.00' },
+    { sub: 'Alquiler o hipoteca', fecha: '2025-12-05', monto: '999.00' },
+    { sub: 'Alquiler o hipoteca', fecha: '2027-01-05', monto: '999.00' },
   ];
   for (const m of movimientos) {
     await request(app)
@@ -54,14 +54,14 @@ afterAll(async () => {
 
 describe('reporte anual (fórmulas del Excel)', () => {
   it('GastoMes(cat, mes) suma los gastos de la categoría en el mes', () => {
-    expect(categoria('GASTO', 'Vida diaria').meses[0]).toBe('250.00');
-    expect(categoria('GASTO', 'Hogar').meses.slice(0, 2)).toEqual(['1200.00', '1200.00']);
-    expect(categoria('GASTO', 'Vida diaria').subcategorias[0]!.meses[0]).toBe('250.00');
+    expect(categoria('GASTO', 'Alimentación').meses[0]).toBe('250.00');
+    expect(categoria('GASTO', 'Vivienda').meses.slice(0, 2)).toEqual(['1200.00', '1200.00']);
+    expect(categoria('GASTO', 'Alimentación').subcategorias.find((s) => s.nombre === 'Supermercado')!.meses[0]).toBe('250.00');
   });
 
   it('IngresoMes(cat, mes) suma los ingresos de la categoría en el mes', () => {
-    expect(categoria('INGRESO', 'Salarios').meses.slice(0, 3)).toEqual(['4200.00', '4200.00', '0.00']);
-    expect(categoria('INGRESO', 'Varios').meses[0]).toBe('300.50');
+    expect(categoria('INGRESO', 'Sueldo').meses.slice(0, 3)).toEqual(['4200.00', '4200.00', '0.00']);
+    expect(categoria('INGRESO', 'Otros ingresos').meses[0]).toBe('300.50');
   });
 
   it('GastosTotales(mes) suma todos los gastos del mes', () => {
@@ -76,7 +76,7 @@ describe('reporte anual (fórmulas del Excel)', () => {
   });
 
   it('Año = suma de los 12 meses en cada fila', () => {
-    expect(categoria('GASTO', 'Hogar').total).toBe('2400.00');
+    expect(categoria('GASTO', 'Vivienda').total).toBe('2400.00');
     expect(seccion('INGRESO').totales.total).toBe('8700.50');
     expect(seccion('GASTO').totales.total).toBe('4650.00');
     expect(seccion('AHORRO').totales.total).toBe('600.00');
@@ -84,7 +84,7 @@ describe('reporte anual (fórmulas del Excel)', () => {
   });
 
   it('ignora movimientos de otros años', () => {
-    const hogar = categoria('GASTO', 'Hogar');
+    const hogar = categoria('GASTO', 'Vivienda');
     expect(hogar.meses[0]).toBe('1200.00');
     expect(hogar.meses[11]).toBe('0.00');
   });
@@ -100,8 +100,8 @@ describe('reporte anual (fórmulas del Excel)', () => {
     const { body } = await request(app).get('/api/reportes/resumen-mensual?anio=2026&mes=1').set(auth());
 
     expect(body.desglose.gastos.map((g: { nombre: string; monto: string; porcentaje: number }) => [g.nombre, g.monto, g.porcentaje])).toEqual([
-      ['Hogar', '1200.00', 82.8],
-      ['Vida diaria', '250.00', 17.2],
+      ['Vivienda', '1200.00', 82.8],
+      ['Alimentación', '250.00', 17.2],
     ]);
     expect(body.variacion.ingresos).toBeNull();
   });

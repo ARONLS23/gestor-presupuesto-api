@@ -12,18 +12,27 @@ const entre = (min: number, max: number) => (min + aleatorio() * (max - min)).to
 type Plantilla = { sub: string; descripcion: string; monto: () => string; dia: number; meses?: number[] };
 
 const plantillas: Plantilla[] = [
-  { sub: 'Salarios', descripcion: 'Sueldo mensual', monto: () => '4200.00', dia: 1 },
+  { sub: 'Sueldo mensual', descripcion: 'Sueldo mensual', monto: () => '4200.00', dia: 1 },
+  { sub: 'Gratificación', descripcion: 'Gratificación', monto: () => '4200.00', dia: 15, meses: [7, 12] },
   { sub: 'Utilidades', descripcion: 'Reparto de utilidades', monto: () => '3500.00', dia: 15, meses: [4] },
-  { sub: 'Varios', descripcion: 'Trabajo freelance', monto: () => entre(300, 900), dia: 20, meses: [1, 3, 6, 9, 11] },
-  { sub: 'Pensión', descripcion: 'Pensión del departamento', monto: () => '1200.00', dia: 5 },
-  { sub: 'Comestibles', descripcion: 'Supermercado', monto: () => entre(150, 320), dia: 7 },
-  { sub: 'Comestibles', descripcion: 'Mercado', monto: () => entre(80, 180), dia: 21 },
-  { sub: 'Gas/combustible', descripcion: 'Combustible', monto: () => entre(120, 220), dia: 10 },
-  { sub: 'Consulta médica', descripcion: 'Consulta médica', monto: () => entre(80, 250), dia: 18, meses: [2, 5, 8, 11] },
+  { sub: 'Trabajos independientes', descripcion: 'Trabajo freelance', monto: () => entre(300, 900), dia: 20, meses: [1, 3, 6, 9, 11] },
+  { sub: 'Alquiler o hipoteca', descripcion: 'Alquiler del departamento', monto: () => '1200.00', dia: 5 },
+  { sub: 'Luz', descripcion: 'Recibo de luz', monto: () => entre(80, 120), dia: 8 },
+  { sub: 'Agua', descripcion: 'Recibo de agua', monto: () => entre(40, 70), dia: 8 },
+  { sub: 'Internet y teléfono', descripcion: 'Internet y celular', monto: () => '119.90', dia: 8 },
+  { sub: 'Supermercado', descripcion: 'Supermercado', monto: () => entre(150, 320), dia: 7 },
+  { sub: 'Mercado', descripcion: 'Mercado', monto: () => entre(80, 180), dia: 21 },
+  { sub: 'Restaurantes y delivery', descripcion: 'Delivery', monto: () => entre(40, 120), dia: 17 },
+  { sub: 'Combustible', descripcion: 'Combustible', monto: () => entre(120, 220), dia: 10 },
+  { sub: 'Consultas', descripcion: 'Consulta médica', monto: () => entre(80, 250), dia: 18, meses: [2, 5, 8, 11] },
+  { sub: 'Cursos', descripcion: 'Curso online', monto: () => entre(150, 300), dia: 12, meses: [3, 9] },
+  { sub: 'Apoyo a hermanos', descripcion: 'Mensualidad universidad', monto: () => '450.00', dia: 6 },
+  { sub: 'Ropa y calzado', descripcion: 'Ropa', monto: () => entre(100, 250), dia: 25, meses: [2, 5, 8, 12] },
+  { sub: 'Salidas', descripcion: 'Salidas', monto: () => entre(80, 200), dia: 26 },
   { sub: 'Viajes', descripcion: 'Viaje de vacaciones', monto: () => entre(1200, 2500), dia: 12, meses: [1, 7] },
-  { sub: 'Salidas/Ropa', descripcion: 'Salidas y ropa', monto: () => entre(100, 400), dia: 25 },
-  { sub: 'Servicios', descripcion: 'Luz, agua e internet', monto: () => entre(220, 290), dia: 8 },
-  { sub: 'Ahorros', descripcion: 'Ahorro mensual', monto: () => '600.00', dia: 2 },
+  { sub: 'Streaming', descripcion: 'Streaming', monto: () => '44.90', dia: 3 },
+  { sub: 'Tarjeta de crédito', descripcion: 'Pago de tarjeta', monto: () => entre(200, 400), dia: 28 },
+  { sub: 'Ahorro general', descripcion: 'Ahorro mensual', monto: () => '600.00', dia: 2 },
 ];
 
 async function obtenerUsuario() {
@@ -55,9 +64,7 @@ async function main() {
     include: { subcategorias: true },
   });
   const subcategorias = new Map(
-    categorias.flatMap((c) =>
-      c.subcategorias.map((s) => [c.tipo === 'GASTO' ? s.nombre : c.nombre, { id: s.id, tipo: c.tipo }] as const),
-    ),
+    categorias.flatMap((c) => c.subcategorias.map((s) => [s.nombre, { id: s.id, tipo: c.tipo }] as const)),
   );
 
   const hoy = new Date();

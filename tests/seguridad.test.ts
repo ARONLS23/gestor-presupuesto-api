@@ -17,7 +17,7 @@ beforeAll(async () => {
   [duenio, ajeno] = await Promise.all([crearUsuarioTemporal(), crearUsuarioTemporal()]);
 
   const hogar = await prisma.categoria.findFirst({
-    where: { usuarioId: duenio.usuarioId, nombre: 'Hogar' },
+    where: { usuarioId: duenio.usuarioId, nombre: 'Vivienda' },
     include: { subcategorias: true },
   });
   categoriaId = hogar!.id;

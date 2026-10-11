@@ -19,12 +19,12 @@ beforeAll(async () => {
 
   const categorias = await prisma.categoria.findMany({ where: { usuarioId: usuario.usuarioId }, include: { subcategorias: true } });
   for (const c of categorias) sub[c.nombre] = c.subcategorias[0]!.id;
-  hogarId = categorias.find((c) => c.nombre === 'Hogar')!.id;
+  hogarId = categorias.find((c) => c.nombre === 'Vivienda')!.id;
 
-  await crear({ subcategoriaId: sub['Hogar'], fecha: '2026-03-05', descripcion: 'Pensión marzo', monto: '1200' });
-  await crear({ subcategoriaId: sub['Vida diaria'], fecha: '2026-03-10', descripcion: 'Supermercado Plaza', comercio: 'Plaza Vea', monto: 250.5 });
-  await crear({ subcategoriaId: sub['Salarios'], fecha: '2026-03-01', descripcion: 'Sueldo', monto: '4200.00' });
-  await crear({ subcategoriaId: sub['Vida diaria'], fecha: '2026-04-02', descripcion: 'Mercado', monto: '80.25' });
+  await crear({ subcategoriaId: sub['Vivienda'], fecha: '2026-03-05', descripcion: 'Pensión marzo', monto: '1200' });
+  await crear({ subcategoriaId: sub['Alimentación'], fecha: '2026-03-10', descripcion: 'Supermercado Plaza', comercio: 'Plaza Vea', monto: 250.5 });
+  await crear({ subcategoriaId: sub['Sueldo'], fecha: '2026-03-01', descripcion: 'Sueldo', monto: '4200.00' });
+  await crear({ subcategoriaId: sub['Alimentación'], fecha: '2026-04-02', descripcion: 'Mercado', monto: '80.25' });
 });
 
 afterAll(async () => {
@@ -35,16 +35,16 @@ afterAll(async () => {
 
 describe('movimientos', () => {
   it('toma el tipo de la categoría y devuelve fecha y monto normalizados', async () => {
-    const res = await crear({ subcategoriaId: sub['Ahorros'], fecha: '2026-03-02', descripcion: 'Ahorro', monto: '600' });
+    const res = await crear({ subcategoriaId: sub['Ahorro'], fecha: '2026-03-02', descripcion: 'Ahorro', monto: '600' });
 
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({ tipo: 'AHORRO', fecha: '2026-03-02', monto: '600.00' });
-    expect(res.body.subcategoria.categoria.nombre).toBe('Ahorros');
+    expect(res.body.subcategoria.categoria.nombre).toBe('Ahorro');
   });
 
   it('rechaza montos inválidos', async () => {
     for (const monto of ['0', '-10', '12.345', 'abc']) {
-      const res = await crear({ subcategoriaId: sub['Hogar'], fecha: '2026-03-05', descripcion: 'X', monto });
+      const res = await crear({ subcategoriaId: sub['Vivienda'], fecha: '2026-03-05', descripcion: 'X', monto });
       expect(res.status).toBe(400);
     }
   });
@@ -98,15 +98,15 @@ describe('movimientos', () => {
     const res = await request(app)
       .put(`/api/movimientos/${body.id}`)
       .set(auth())
-      .send({ subcategoriaId: sub['Varios'], descripcion: 'Reembolso' });
+      .send({ subcategoriaId: sub['Otros ingresos'], descripcion: 'Reembolso' });
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ tipo: 'INGRESO', descripcion: 'Reembolso', monto: '40.00' });
   });
 
   it('no permite registrar en subcategorías desactivadas', async () => {
-    await prisma.subcategoria.update({ where: { id: sub['Vacaciones']! }, data: { activa: false } });
-    const res = await crear({ subcategoriaId: sub['Vacaciones'], fecha: '2026-03-05', descripcion: 'Viaje', monto: '100' });
+    await prisma.subcategoria.update({ where: { id: sub['Ocio']! }, data: { activa: false } });
+    const res = await crear({ subcategoriaId: sub['Ocio'], fecha: '2026-03-05', descripcion: 'Viaje', monto: '100' });
 
     expect(res.status).toBe(400);
   });
@@ -122,7 +122,7 @@ describe('movimientos', () => {
         await request(app)
           .post('/api/movimientos')
           .set(ajeno)
-          .send({ subcategoriaId: sub['Hogar'], fecha: '2026-03-05', descripcion: 'X', monto: '1' })
+          .send({ subcategoriaId: sub['Vivienda'], fecha: '2026-03-05', descripcion: 'X', monto: '1' })
       ).status,
     ).toBe(404);
   });

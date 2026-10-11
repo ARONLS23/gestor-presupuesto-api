@@ -2,6 +2,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { app } from '../src/app.ts';
 import { prisma } from '../src/config/prisma.ts';
+import { categoriasIniciales } from '../src/modules/categorias/categorias-iniciales.ts';
 import { borrarUsuario, crearUsuarioTemporal } from './helpers.ts';
 
 let usuario: Awaited<ReturnType<typeof crearUsuarioTemporal>>;
@@ -26,7 +27,7 @@ describe('categorías', () => {
     const res = await request(app).post('/api/categorias').set(auth()).send({ nombre: 'Mascotas', tipo: 'GASTO', icono: 'pets' });
 
     expect(res.status).toBe(201);
-    expect(res.body.orden).toBe(11);
+    expect(res.body.orden).toBe(categoriasIniciales.length);
     expect(res.body.subcategorias.map((s: { nombre: string }) => s.nombre)).toEqual(['General']);
     categoriaId = res.body.id;
   });
@@ -62,7 +63,7 @@ describe('categorías', () => {
 
   it('desactiva una categoría con movimientos', async () => {
     const hogar = await prisma.categoria.findFirstOrThrow({
-      where: { usuarioId: usuario.usuarioId, nombre: 'Hogar' },
+      where: { usuarioId: usuario.usuarioId, nombre: 'Vivienda' },
       include: { subcategorias: true },
     });
     await prisma.movimiento.create({
@@ -71,7 +72,7 @@ describe('categorías', () => {
         subcategoriaId: hogar.subcategorias[0]!.id,
         tipo: 'GASTO',
         fecha: new Date('2026-10-01'),
-        descripcion: 'Pensión',
+        descripcion: 'Alquiler',
         monto: '1200.00',
       },
     });
@@ -88,7 +89,7 @@ describe('subcategorías', () => {
   let subcategoriaId = '';
 
   beforeAll(async () => {
-    const res = await request(app).post('/api/categorias').set(auth()).send({ nombre: 'Educación', tipo: 'GASTO' });
+    const res = await request(app).post('/api/categorias').set(auth()).send({ nombre: 'Proyectos personales', tipo: 'GASTO' });
     categoriaId = res.body.id;
   });
 

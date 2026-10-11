@@ -33,15 +33,15 @@ beforeAll(async () => {
   usuario = await crearUsuarioTemporal();
 
   const categorias = await prisma.categoria.findMany({ where: { usuarioId: usuario.usuarioId }, include: { subcategorias: true } });
-  const sub = (nombre: string) => categorias.find((c) => c.nombre === nombre)!.subcategorias[0]!.id;
+  const sub = (nombre: string) => categorias.flatMap((c) => c.subcategorias).find((s) => s.nombre === nombre)!.id;
 
   const movimientos = [
-    { sub: 'Salarios', fecha: '2026-01-01', monto: '4200.00' },
-    { sub: 'Varios', fecha: '2026-03-20', monto: '300.50' },
-    { sub: 'Hogar', fecha: '2026-01-05', monto: '1200.00' },
-    { sub: 'Vida diaria', fecha: '2026-03-07', monto: '150.25' },
-    { sub: 'Ahorros', fecha: '2026-01-02', monto: '600.00' },
-    { sub: 'Hogar', fecha: '2025-12-05', monto: '999.00' },
+    { sub: 'Sueldo mensual', fecha: '2026-01-01', monto: '4200.00' },
+    { sub: 'Otros', fecha: '2026-03-20', monto: '300.50' },
+    { sub: 'Alquiler o hipoteca', fecha: '2026-01-05', monto: '1200.00' },
+    { sub: 'Supermercado', fecha: '2026-03-07', monto: '150.25' },
+    { sub: 'Ahorro general', fecha: '2026-01-02', monto: '600.00' },
+    { sub: 'Alquiler o hipoteca', fecha: '2025-12-05', monto: '999.00' },
   ];
   for (const m of movimientos) {
     await request(app)
@@ -64,31 +64,33 @@ describe('exportar vista anual a Excel', () => {
   });
 
   it('hoja Gasto: una fila por subcategoría con meses y Año = SUM', () => {
-    const hogar = fila('Gasto', 'Hogar');
+    const hogar = fila('Gasto', 'Alquiler o hipoteca', 3);
     expect(hogar.getCell(4).value).toBe(1200);
     expect(hogar.getCell(16).value).toMatchObject({ formula: `SUM(D${hogar.number}:O${hogar.number})`, result: 1200 });
   });
 
   it('hoja Gasto: totales de Gastos y Ahorro con SUM por mes', () => {
-    const [gastos, ahorro] = libro.getWorksheet('Gasto')!.getRows(1, 40)!.filter((r) => r.getCell(2).value === 'Total');
+    const [gastos, ahorro] = libro.getWorksheet('Gasto')!.getRows(1, 80)!.filter((r) => r.getCell(2).value === 'Total');
     expect((gastos!.getCell(4).value as ExcelJS.CellFormulaValue).formula).toMatch(/^SUM\(D\d+:D\d+\)$/);
     expect(resultado(gastos!.getCell(16))).toBe(1350.25);
     expect(resultado(ahorro!.getCell(16))).toBe(600);
   });
 
   it('hoja Resumen: gastos, ahorro y efectivo libre = ingresos − gastos − ahorro', () => {
-    expect(resultado(fila('Resumen', 'Gastos totales').getCell(15))).toBe(1350.25);
-    expect(resultado(fila('Resumen', 'Ahorro total').getCell(15))).toBe(600);
+    expect(resultado(fila('Resumen', 'Gastos totales').getCell(16))).toBe(1350.25);
+    expect(resultado(fila('Resumen', 'Ahorro total').getCell(16))).toBe(600);
 
     const efectivo = fila('Resumen', 'Efectivo libre');
-    expect(resultado(efectivo.getCell(3))).toBe(2400);
-    expect(resultado(efectivo.getCell(15))).toBe(2550.25);
-    expect((efectivo.getCell(3).value as ExcelJS.CellFormulaValue).formula).toMatch(/^C\d+-C3-C4$/);
+    expect(resultado(efectivo.getCell(4))).toBe(2400);
+    expect(resultado(efectivo.getCell(16))).toBe(2550.25);
+    expect((efectivo.getCell(4).value as ExcelJS.CellFormulaValue).formula).toMatch(/^D\d+-D3-D4$/);
   });
 
-  it('hoja Resumen: tabla de ingresos por categoría', () => {
-    expect(fila('Resumen', 'Salarios').getCell(3).value).toBe(4200);
-    expect(resultado(fila('Resumen', 'Total').getCell(15))).toBe(4500.5);
+  it('hoja Resumen: tabla de ingresos por categoría y subcategoría', () => {
+    const sueldo = fila('Resumen', 'Sueldo mensual', 3);
+    expect(sueldo.getCell(2).value).toBe('Sueldo');
+    expect(sueldo.getCell(4).value).toBe(4200);
+    expect(resultado(fila('Resumen', 'Total').getCell(16))).toBe(4500.5);
   });
 
   it('trimestral: solo los 3 meses del trimestre y columna Total', async () => {
@@ -99,13 +101,13 @@ describe('exportar vista anual a Excel', () => {
 
     const resumen = trimestre.getWorksheet('Resumen')!;
     const efectivo = resumen.getRows(1, 10)!.find((r) => r.getCell(2).value === 'Efectivo libre')!;
-    expect(resultado(efectivo.getCell(6))).toBe(2550.25);
+    expect(resultado(efectivo.getCell(7))).toBe(2550.25);
   });
 
   it('mensual: una columna con el mes y sin columna total', async () => {
     const marzo = await descargar('/api/excel/exportar?anio=2026&mes=3&alcance=mensual', 'presupuesto-2026-03.xlsx');
     const gasto = marzo.getWorksheet('Gasto')!;
-    const vida = gasto.getRows(1, 20)!.find((r) => r.getCell(2).value === 'Vida diaria')!;
+    const vida = gasto.getRows(1, 60)!.find((r) => r.getCell(3).value === 'Supermercado')!;
     expect(gasto.getRow(3).getCell(4).value).toBe('Marzo');
     expect(gasto.getRow(3).getCell(5).value).toBeNull();
     expect(vida.getCell(4).value).toBe(150.25);
@@ -114,7 +116,7 @@ describe('exportar vista anual a Excel', () => {
   it('plantilla vacía para importar (mensual)', async () => {
     const plantilla = await descargar('/api/excel/plantilla?anio=2026&mes=11&alcance=mensual', 'plantilla-mensual-2026-11.xlsx');
     const gasto = plantilla.getWorksheet('Gasto')!;
-    const hogar = gasto.getRows(1, 20)!.find((r) => r.getCell(2).value === 'Hogar')!;
+    const hogar = gasto.getRows(1, 60)!.find((r) => r.getCell(3).value === 'Alquiler o hipoteca')!;
     expect(gasto.getRow(3).getCell(4).value).toBe('Nov');
     expect(hogar.getCell(4).value).toBeNull();
   });
@@ -138,9 +140,9 @@ describe('exportar movimientos filtrados a Excel', () => {
     expect(ws.getCell('B2').value).toBe('Sin filtros');
     expect(ws.getRow(4).getCell(2).value).toBe('Fecha');
     expect([5, 6, 7].map((n) => [ws.getCell(`C${n}`).value, ws.getCell(`D${n}`).value, ws.getCell(`J${n}`).value])).toEqual([
-      ['Gasto', 'Hogar', 1200],
-      ['Ahorro', 'Ahorros', 600],
-      ['Ingreso', 'Salarios', 4200],
+      ['Gasto', 'Vivienda', 1200],
+      ['Ahorro', 'Ahorro', 600],
+      ['Ingreso', 'Sueldo', 4200],
     ]);
     expect(ws.getCell('B5').value).toEqual(new Date('2026-01-05T00:00:00Z'));
 

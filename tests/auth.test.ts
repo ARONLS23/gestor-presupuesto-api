@@ -2,6 +2,7 @@ import request from 'supertest';
 import { afterAll, describe, expect, it } from 'vitest';
 import { app } from '../src/app.ts';
 import { prisma } from '../src/config/prisma.ts';
+import { categoriasIniciales } from '../src/modules/categorias/categorias-iniciales.ts';
 
 const email = `test-${Date.now()}@example.com`;
 const password = 'MiClave123';
@@ -29,7 +30,7 @@ describe('auth', () => {
     expect(res.body.token).toBeTypeOf('string');
 
     const categorias = await request(app).get('/api/categorias').set('Authorization', `Bearer ${res.body.token}`);
-    expect(categorias.body).toHaveLength(11);
+    expect(categorias.body).toHaveLength(categoriasIniciales.length);
   });
 
   it('rechaza un email ya registrado', async () => {
