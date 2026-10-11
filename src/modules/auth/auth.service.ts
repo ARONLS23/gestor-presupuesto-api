@@ -33,9 +33,14 @@ export const registrar = async ({ nombre, email, password }: RegistroInput) => {
   }
 };
 
+// Si el email no existe se compara igual contra un hash cualquiera, para que la respuesta tarde
+// lo mismo y no revele qué emails están registrados.
+const hashFicticio = hash('sin-usuario', 12);
+
 export const login = async ({ email, password }: LoginInput) => {
   const usuario = await prisma.usuario.findUnique({ where: { email } });
-  if (!usuario || !(await compare(password, usuario.passwordHash))) {
+  const valida = await compare(password, usuario?.passwordHash ?? (await hashFicticio));
+  if (!usuario || !valida) {
     throw new HttpError(401, 'Email o contraseña incorrectos');
   }
 

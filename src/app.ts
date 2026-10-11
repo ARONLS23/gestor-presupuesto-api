@@ -10,6 +10,8 @@ import { subcategoriasRouter } from './modules/subcategorias/subcategorias.route
 
 export const app: Express = express();
 
+app.disable('x-powered-by');
+
 app.use(express.json());
 
 app.get('/', (req: Request, res: Response) => {
