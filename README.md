@@ -38,6 +38,7 @@ La usa la web [`gestor-presupuesto-web`](../gestor-presupuesto-web), que la llam
    | `DATABASE_URL` | Conexión a PostgreSQL | `postgresql://postgres:clave@localhost:5432/gestor_presupuesto` |
    | `JWT_SECRET` | Clave para firmar las sesiones (mínimo 32 caracteres) | ver abajo |
    | `JWT_EXPIRES_IN` | Duración de la sesión | `7d` |
+   | `DIRECT_URL` | (Opcional) Conexión directa solo para las migraciones; en producción con Neon | ver [Producción](#producción) |
 
    Para generar un `JWT_SECRET` aleatorio:
 
@@ -83,6 +84,52 @@ La carpeta [`http/`](http) tiene peticiones de ejemplo de cada módulo para la e
 
 ## Producción
 
+La API se despliega en **Vercel** (plan gratis) y la base de datos en **Neon** (PostgreSQL, plan gratis).
+
+### 1. Base de datos en Neon
+
+1. Crea un proyecto en [neon.com](https://neon.com), región **AWS US East (N. Virginia)** (la misma región donde Vercel ejecuta la API).
+2. En el botón **Connect** copia las dos cadenas de conexión:
+   - con **Connection pooling** activado (dirección con `-pooler`): será `DATABASE_URL`;
+   - con **Connection pooling** desactivado: será `DIRECT_URL`.
+
+   El pooler reparte las conexiones entre las instancias de la API; las migraciones necesitan la conexión directa.
+
+3. (Opcional) Aplica las migraciones desde tu computadora, sin esperar al despliegue. Usa la cadena **directa** entre comillas simples (la cadena tiene `&`):
+
+   ```powershell
+   # PowerShell
+   $env:DIRECT_URL = 'postgresql://...cadena directa...'
+   npm run db:migrar
+   Remove-Item Env:DIRECT_URL
+   ```
+
+   ```bash
+   # Bash
+   DIRECT_URL='postgresql://...cadena directa...' npm run db:migrar
+   ```
+
+   La última línea de PowerShell borra la variable para que los comandos siguientes vuelvan a usar tu base local. Las migraciones solo crean tablas: no cargan datos ni el usuario de ejemplo.
+
+### 2. API en Vercel
+
+1. En [vercel.com](https://vercel.com) importa este repositorio (**Add New → Project**). Vercel detecta Express y publica la app que exporta `src/app.ts`.
+2. En **Environment Variables** agrega:
+
+   | Variable | Valor |
+   |---|---|
+   | `DATABASE_URL` | Cadena de Neon **con** pooler |
+   | `DIRECT_URL` | Cadena de Neon **sin** pooler |
+   | `JWT_SECRET` | Una clave nueva (ver [Instalación](#instalación)), distinta a la de desarrollo |
+   | `JWT_EXPIRES_IN` | Duración de la sesión, por ejemplo `6h` |
+
+3. Despliega. En cada despliegue, `npm run vercel-build` genera el cliente de Prisma y aplica las migraciones pendientes en Neon.
+4. Comprueba que `https://<tu-api>.vercel.app/api/auth/me` responda `{"mensaje":"No autenticado"}`.
+
+La URL `https://<tu-api>.vercel.app/api` es la que usará la web en su variable `API_URL`.
+
+### En un servidor propio
+
 ```bash
 npm ci
 npm run db:generar
@@ -90,15 +137,13 @@ npm run db:migrar
 npm start
 ```
 
-- No hay paso de compilación: Node ejecuta el código TypeScript directamente.
-- `prisma` es dependencia de desarrollo; instala con las dependencias de desarrollo (como arriba) para poder generar el cliente y migrar.
-- Usa un `JWT_SECRET` propio y distinto al de desarrollo.
+No hay paso de compilación: Node ejecuta el código TypeScript directamente. `prisma` es dependencia de desarrollo; instala con las dependencias de desarrollo para poder generar el cliente y migrar.
 
 ## Seguridad
 
 - Todas las rutas, salvo registro y login, exigen el encabezado `Authorization: Bearer <token>`.
 - Cada consulta se filtra por el usuario de la sesión; acceder a datos de otro usuario responde 404.
-- Login: máximo 5 intentos fallidos en 15 minutos **por email**. El conteo se guarda en memoria: se reinicia al reiniciar la API y, si se ejecutan varias instancias, habría que usar un almacén compartido.
+- Login: máximo 5 intentos fallidos en 15 minutos **por email**. El conteo se guarda en la tabla `IntentoLogin`, así se comparte entre todas las instancias de la API.
 - CORS está deshabilitado a propósito: la API solo recibe llamadas del servidor de la web.
 
 ## Estructura

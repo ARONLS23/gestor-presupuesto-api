@@ -17,6 +17,7 @@ export async function crearUsuarioTemporal() {
 }
 
 export async function borrarUsuario(email: string) {
+  await prisma.intentoLogin.deleteMany({ where: { clave: email } });
   const usuario = await prisma.usuario.findUnique({ where: { email } });
   if (!usuario) return;
 

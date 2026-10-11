@@ -9,7 +9,8 @@ export default defineConfig({
     path: "prisma/migrations",
     seed: "node prisma/seed.ts",
   },
+  // Las migraciones usan la conexión directa (DIRECT_URL) si existe; la API usa DATABASE_URL.
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });

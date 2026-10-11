@@ -9,6 +9,7 @@ const password = 'MiClave123';
 let token = '';
 
 afterAll(async () => {
+  await prisma.intentoLogin.deleteMany({ where: { clave: email } });
   const usuario = await prisma.usuario.findUnique({ where: { email } });
   if (usuario) {
     await prisma.$transaction([

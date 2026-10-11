@@ -88,3 +88,10 @@ model Presupuesto {
 
   @@unique([usuarioId, categoriaId, anio, mes])
 }
+
+/// Intentos fallidos de login por email (límite de intentos compartido entre instancias de la API)
+model IntentoLogin {
+  clave      String   @id
+  intentos   Int
+  reiniciaEn DateTime
+}

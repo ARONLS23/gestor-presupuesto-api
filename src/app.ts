@@ -28,3 +28,6 @@ app.use('/api/excel', excelRouter);
 
 app.use(rutaNoEncontrada);
 app.use(manejarErrores);
+
+// Vercel publica la app desde este archivo.
+export default app;

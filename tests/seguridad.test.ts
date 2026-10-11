@@ -32,6 +32,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await Promise.all([borrarUsuario(duenio.email), borrarUsuario(ajeno.email)]);
+  await prisma.intentoLogin.deleteMany({ where: { clave: { startsWith: 'no-existe-' } } });
   await prisma.$disconnect();
 });
 
@@ -106,7 +107,7 @@ describe('login', () => {
   });
 
   it('mismo mensaje si el email no existe o la contraseña es incorrecta', async () => {
-    const noExiste = await intentar('no-existe@example.com', 'MiClave123');
+    const noExiste = await intentar(`no-existe-${Date.now()}@example.com`, 'MiClave123');
     const incorrecta = await intentar(ajeno.email, 'otra-clave');
     expect(noExiste.status).toBe(401);
     expect(noExiste.body).toEqual(incorrecta.body);
