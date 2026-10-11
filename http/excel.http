@@ -1,0 +1,3 @@
+### Exportar la vista anual a Excel
+GET http://localhost:4000/api/excel/exportar?anio=2026
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN

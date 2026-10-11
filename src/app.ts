@@ -2,6 +2,7 @@ import express, { type Express, type Request, type Response } from 'express';
 import { manejarErrores, rutaNoEncontrada } from './middlewares/errores.ts';
 import { authRouter } from './modules/auth/auth.routes.ts';
 import { categoriasRouter } from './modules/categorias/categorias.routes.ts';
+import { excelRouter } from './modules/excel/excel.routes.ts';
 import { movimientosRouter } from './modules/movimientos/movimientos.routes.ts';
 import { presupuestosRouter } from './modules/presupuestos/presupuestos.routes.ts';
 import { reportesRouter } from './modules/reportes/reportes.routes.ts';
@@ -21,6 +22,7 @@ app.use('/api/subcategorias', subcategoriasRouter);
 app.use('/api/movimientos', movimientosRouter);
 app.use('/api/reportes', reportesRouter);
 app.use('/api/presupuestos', presupuestosRouter);
+app.use('/api/excel', excelRouter);
 
 app.use(rutaNoEncontrada);
 app.use(manejarErrores);
