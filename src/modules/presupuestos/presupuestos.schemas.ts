@@ -1,7 +1,5 @@
 import { z } from 'zod';
-import { anio, mes, monto } from '../../utils/esquemas.ts';
-
-export const periodoSchema = z.object({ anio, mes });
+import { monto, periodoSchema } from '../../utils/esquemas.ts';
 
 export const guardarPresupuestosSchema = periodoSchema.extend({
   limites: z
@@ -9,5 +7,4 @@ export const guardarPresupuestosSchema = periodoSchema.extend({
     .min(1, 'Indica al menos un límite'),
 });
 
-export type Periodo = z.infer<typeof periodoSchema>;
 export type GuardarPresupuestosInput = z.infer<typeof guardarPresupuestosSchema>;

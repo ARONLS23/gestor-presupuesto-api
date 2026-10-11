@@ -6,3 +6,8 @@ export function hoy() {
 }
 
 export const diasDelMes = (anio: number, mes: number) => new Date(Date.UTC(anio, mes, 0)).getUTCDate();
+
+export function moverMes({ anio, mes }: { anio: number; mes: number }, meses: number) {
+  const fecha = new Date(Date.UTC(anio, mes - 1 + meses, 1));
+  return { anio: fecha.getUTCFullYear(), mes: fecha.getUTCMonth() + 1 };
+}

@@ -14,12 +14,12 @@ let reporte: {
   efectivoNeto: { meses: string[]; total: string };
 };
 
+const auth = () => ({ Authorization: `Bearer ${usuario.token}` });
 const seccion = (tipo: string) => reporte.secciones.find((s) => s.tipo === tipo)!;
 const categoria = (tipo: string, nombre: string) => seccion(tipo).categorias.find((c) => c.nombre === nombre)!;
 
 beforeAll(async () => {
   usuario = await crearUsuarioTemporal();
-  const auth = { Authorization: `Bearer ${usuario.token}` };
 
   const categorias = await prisma.categoria.findMany({ where: { usuarioId: usuario.usuarioId }, include: { subcategorias: true } });
   const sub = (nombre: string) => categorias.find((c) => c.nombre === nombre)!.subcategorias[0]!.id;
@@ -40,11 +40,11 @@ beforeAll(async () => {
   for (const m of movimientos) {
     await request(app)
       .post('/api/movimientos')
-      .set(auth)
+      .set(auth())
       .send({ subcategoriaId: sub(m.sub), fecha: m.fecha, descripcion: 'Test', monto: m.monto });
   }
 
-  reporte = (await request(app).get('/api/reportes/anual?anio=2026').set(auth)).body;
+  reporte = (await request(app).get('/api/reportes/anual?anio=2026').set(auth())).body;
 });
 
 afterAll(async () => {
@@ -89,8 +89,36 @@ describe('reporte anual (fórmulas del Excel)', () => {
     expect(hogar.meses[11]).toBe('0.00');
   });
 
+  it('resumen mensual: totales y variación frente al mes anterior', async () => {
+    const { body } = await request(app).get('/api/reportes/resumen-mensual?anio=2026&mes=2').set(auth());
+
+    expect(body.totales).toEqual({ ingresos: '4200.00', gastos: '1200.00', ahorro: '0.00', efectivoLibre: '3000.00' });
+    expect(body.variacion).toEqual({ ingresos: -6.7, gastos: -17.2, ahorro: -100, efectivoLibre: 22.4 });
+  });
+
+  it('resumen mensual: desglose por categoría con porcentaje', async () => {
+    const { body } = await request(app).get('/api/reportes/resumen-mensual?anio=2026&mes=1').set(auth());
+
+    expect(body.desglose.gastos.map((g: { nombre: string; monto: string; porcentaje: number }) => [g.nombre, g.monto, g.porcentaje])).toEqual([
+      ['Hogar', '1200.00', 82.8],
+      ['Vida diaria', '250.00', 17.2],
+    ]);
+    expect(body.variacion.ingresos).toBeNull();
+  });
+
+  it('histórico: últimos N meses, cruzando de año, y ahorro promedio', async () => {
+    const { body } = await request(app).get('/api/reportes/historico?anio=2026&mes=2&meses=3').set(auth());
+
+    expect(body.meses.map((m: { anio: number; mes: number; ingresos: string; gastos: string }) => [m.anio, m.mes, m.ingresos, m.gastos])).toEqual([
+      [2025, 12, '0.00', '999.00'],
+      [2026, 1, '4500.50', '1450.00'],
+      [2026, 2, '4200.00', '1200.00'],
+    ]);
+    expect(body.promedioAhorro).toBe('200.00');
+  });
+
   it('valida el año', async () => {
-    const res = await request(app).get('/api/reportes/anual?anio=abc').set({ Authorization: `Bearer ${usuario.token}` });
+    const res = await request(app).get('/api/reportes/anual?anio=abc').set(auth());
     expect(res.status).toBe(400);
   });
 });

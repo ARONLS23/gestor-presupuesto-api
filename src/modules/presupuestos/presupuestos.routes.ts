@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { requireAuth } from '../../middlewares/auth.ts';
 import { validarBody } from '../../middlewares/validar.ts';
+import { periodoSchema } from '../../utils/esquemas.ts';
 import * as presupuestosController from './presupuestos.controller.ts';
-import { guardarPresupuestosSchema, periodoSchema } from './presupuestos.schemas.ts';
+import { guardarPresupuestosSchema } from './presupuestos.schemas.ts';
 
 export const presupuestosRouter = Router();
 

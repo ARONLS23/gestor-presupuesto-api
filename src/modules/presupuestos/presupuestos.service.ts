@@ -1,9 +1,10 @@
 import { Prisma } from '../../../generated/prisma/client.ts';
 import { prisma } from '../../config/prisma.ts';
 import { HttpError } from '../../middlewares/errores.ts';
-import { diasDelMes, hoy } from '../../utils/fechas.ts';
+import type { Periodo } from '../../utils/esquemas.ts';
+import { diasDelMes, hoy, moverMes } from '../../utils/fechas.ts';
 import { filtroMovimientos } from '../movimientos/movimientos.service.ts';
-import type { GuardarPresupuestosInput, Periodo } from './presupuestos.schemas.ts';
+import type { GuardarPresupuestosInput } from './presupuestos.schemas.ts';
 
 export type EstadoPresupuesto = 'SIN_LIMITE' | 'EN_RANGO' | 'ATENCION' | 'CERCA_LIMITE' | 'EXCEDIDO';
 
@@ -140,7 +141,7 @@ export const guardarPresupuestos = async (usuarioId: string, { limites, ...perio
 };
 
 export const copiarPresupuestoAnterior = async (usuarioId: string, periodo: Periodo) => {
-  const anterior = periodo.mes === 1 ? { anio: periodo.anio - 1, mes: 12 } : { anio: periodo.anio, mes: periodo.mes - 1 };
+  const anterior = moverMes(periodo, -1);
   const previos = await prisma.presupuesto.findMany({ where: { usuarioId, ...anterior } });
   if (!previos.length) throw new HttpError(404, 'El mes anterior no tiene presupuesto');
 

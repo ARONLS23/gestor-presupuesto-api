@@ -7,3 +7,5 @@ export const reportesRouter = Router();
 reportesRouter.use(requireAuth);
 
 reportesRouter.get('/anual', reportesController.anual);
+reportesRouter.get('/resumen-mensual', reportesController.resumenMensual);
+reportesRouter.get('/historico', reportesController.historico);

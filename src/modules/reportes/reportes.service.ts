@@ -1,5 +1,8 @@
 import { Prisma, type TipoMovimiento } from '../../../generated/prisma/client.ts';
 import { prisma } from '../../config/prisma.ts';
+import type { Periodo } from '../../utils/esquemas.ts';
+import { moverMes } from '../../utils/fechas.ts';
+import { filtroMovimientos, totalesMovimientos } from '../movimientos/movimientos.service.ts';
 
 type Fila = { meses: Prisma.Decimal[]; total: Prisma.Decimal };
 
@@ -83,4 +86,84 @@ export const reporteAnual = async (usuarioId: string, anio: number) => {
   });
 
   return { anio, secciones, efectivoNeto: aRespuesta(efectivoNeto) };
+};
+
+const variacion = (actual: string, anterior: string) => {
+  const previo = new Prisma.Decimal(anterior);
+  return previo.isZero() ? null : Number(new Prisma.Decimal(actual).minus(previo).div(previo).times(100).toFixed(1));
+};
+
+export const resumenMensual = async (usuarioId: string, periodo: Periodo) => {
+  const [actual, previo, categorias, sumas] = await Promise.all([
+    totalesMovimientos(usuarioId, periodo),
+    totalesMovimientos(usuarioId, moverMes(periodo, -1)),
+    prisma.categoria.findMany({ where: { usuarioId }, include: { subcategorias: { select: { id: true } } } }),
+    prisma.movimiento.groupBy({ by: ['subcategoriaId'], where: filtroMovimientos(usuarioId, periodo), _sum: { monto: true } }),
+  ]);
+
+  const desglose = (tipo: TipoMovimiento, total: string) =>
+    categorias
+      .filter((c) => c.tipo === tipo)
+      .map((c) => ({
+        c,
+        monto: c.subcategorias.reduce(
+          (suma, s) => suma.plus(sumas.find((x) => x.subcategoriaId === s.id)?._sum.monto ?? 0),
+          cero(),
+        ),
+      }))
+      .filter(({ monto }) => !monto.isZero())
+      .sort((a, b) => b.monto.comparedTo(a.monto))
+      .map(({ c, monto }) => ({
+        categoriaId: c.id,
+        nombre: c.nombre,
+        icono: c.icono,
+        color: c.color,
+        monto: monto.toFixed(2),
+        porcentaje: Number(monto.div(total).times(100).toFixed(1)),
+      }));
+
+  return {
+    ...periodo,
+    totales: { ingresos: actual.ingresos, gastos: actual.gastos, ahorro: actual.ahorro, efectivoLibre: actual.balance },
+    variacion: {
+      ingresos: variacion(actual.ingresos, previo.ingresos),
+      gastos: variacion(actual.gastos, previo.gastos),
+      ahorro: variacion(actual.ahorro, previo.ahorro),
+      efectivoLibre: variacion(actual.balance, previo.balance),
+    },
+    desglose: {
+      ingresos: desglose('INGRESO', actual.ingresos),
+      gastos: desglose('GASTO', actual.gastos),
+    },
+  };
+};
+
+export const historico = async (usuarioId: string, { meses, ...periodo }: Periodo & { meses: number }) => {
+  const inicio = moverMes(periodo, -(meses - 1));
+  const desde = new Date(Date.UTC(inicio.anio, inicio.mes - 1, 1));
+  const hasta = new Date(Date.UTC(periodo.anio, periodo.mes, 1));
+
+  const sumas = await prisma.$queryRaw<{ anio: number; mes: number; tipo: TipoMovimiento; total: Prisma.Decimal }[]>`
+    SELECT EXTRACT(YEAR FROM "fecha")::int AS anio, EXTRACT(MONTH FROM "fecha")::int AS mes, "tipo", SUM("monto") AS total
+    FROM "Movimiento"
+    WHERE "usuarioId" = ${usuarioId} AND "fecha" >= ${desde} AND "fecha" < ${hasta}
+    GROUP BY 1, 2, 3`;
+
+  let ahorroTotal = cero();
+  const filas = Array.from({ length: meses }, (_, i) => {
+    const p = moverMes(inicio, i);
+    const suma = (tipo: TipoMovimiento) =>
+      new Prisma.Decimal(sumas.find((s) => s.anio === p.anio && s.mes === p.mes && s.tipo === tipo)?.total ?? 0);
+    const [ingresos, gastos, ahorro] = [suma('INGRESO'), suma('GASTO'), suma('AHORRO')];
+    ahorroTotal = ahorroTotal.plus(ahorro);
+    return {
+      ...p,
+      ingresos: ingresos.toFixed(2),
+      gastos: gastos.toFixed(2),
+      ahorro: ahorro.toFixed(2),
+      efectivoLibre: ingresos.minus(gastos).minus(ahorro).toFixed(2),
+    };
+  });
+
+  return { meses: filas, promedioAhorro: ahorroTotal.div(meses).toFixed(2) };
 };

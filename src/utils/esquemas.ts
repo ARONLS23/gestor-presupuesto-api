@@ -3,6 +3,9 @@ import { z } from 'zod';
 export const anio = z.coerce.number().int().min(2000).max(2100);
 export const mes = z.coerce.number().int().min(1).max(12);
 
+export const periodoSchema = z.object({ anio, mes });
+export type Periodo = z.infer<typeof periodoSchema>;
+
 export const monto = z
   .union([z.string(), z.number()])
   .transform(String)

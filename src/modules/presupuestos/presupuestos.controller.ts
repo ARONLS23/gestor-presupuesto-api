@@ -1,5 +1,5 @@
 import type { RequestHandler } from 'express';
-import { periodoSchema } from './presupuestos.schemas.ts';
+import { periodoSchema } from '../../utils/esquemas.ts';
 import * as presupuestosService from './presupuestos.service.ts';
 
 export const listar: RequestHandler = async (req, res) => {
