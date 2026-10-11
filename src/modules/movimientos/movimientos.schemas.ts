@@ -26,6 +26,8 @@ export const listarMovimientosSchema = z.object({
   size: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+export const exportarMovimientosSchema = listarMovimientosSchema.omit({ page: true, size: true });
+
 export const totalesMovimientosSchema = listarMovimientosSchema.pick({
   anio: true,
   mes: true,
@@ -38,3 +40,4 @@ export type CrearMovimientoInput = z.infer<typeof crearMovimientoSchema>;
 export type ActualizarMovimientoInput = z.infer<typeof actualizarMovimientoSchema>;
 export type FiltrosMovimientos = z.infer<typeof listarMovimientosSchema>;
 export type FiltrosTotales = z.infer<typeof totalesMovimientosSchema>;
+export type FiltrosExportar = z.infer<typeof exportarMovimientosSchema>;

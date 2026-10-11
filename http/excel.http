@@ -1,3 +1,7 @@
 ### Exportar la vista anual a Excel
 GET http://localhost:4000/api/excel/exportar?anio=2026
 Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+
+### Exportar movimientos filtrados a Excel
+GET http://localhost:4000/api/excel/movimientos?anio=2026&mes=10&tipo=GASTO
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN

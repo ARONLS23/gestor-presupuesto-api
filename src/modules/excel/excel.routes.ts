@@ -7,3 +7,4 @@ export const excelRouter = Router();
 excelRouter.use(requireAuth);
 
 excelRouter.get('/exportar', excelController.exportar);
+excelRouter.get('/movimientos', excelController.movimientos);

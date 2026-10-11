@@ -4,6 +4,7 @@ import { HttpError } from '../../middlewares/errores.ts';
 import type {
   ActualizarMovimientoInput,
   CrearMovimientoInput,
+  FiltrosExportar,
   FiltrosMovimientos,
   FiltrosTotales,
 } from './movimientos.schemas.ts';
@@ -78,6 +79,15 @@ export const listarMovimientos = async (usuarioId: string, filtros: FiltrosMovim
   ]);
 
   return { items: items.map(aRespuesta), total, page, size, paginas: Math.ceil(total / size) };
+};
+
+export const todosLosMovimientos = async (usuarioId: string, filtros: FiltrosExportar) => {
+  const items = await prisma.movimiento.findMany({
+    where: filtroMovimientos(usuarioId, filtros),
+    orderBy: ordenes[filtros.orden],
+    select: movimientoPublico,
+  });
+  return items.map(aRespuesta);
 };
 
 export const totalesMovimientos = (usuarioId: string, filtros: FiltrosTotales) =>

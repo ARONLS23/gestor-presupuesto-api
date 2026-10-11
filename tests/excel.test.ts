@@ -6,7 +6,7 @@ import { prisma } from '../src/config/prisma.ts';
 import { borrarUsuario, crearUsuarioTemporal } from './helpers.ts';
 
 let usuario: Awaited<ReturnType<typeof crearUsuarioTemporal>>;
-const libro = new ExcelJS.Workbook();
+let libro: ExcelJS.Workbook;
 
 const auth = () => ({ Authorization: `Bearer ${usuario.token}` });
 const fila = (hoja: string, etiqueta: string, columna = 2) => {
@@ -14,6 +14,24 @@ const fila = (hoja: string, etiqueta: string, columna = 2) => {
   return ws.getRows(1, ws.rowCount)!.find((r) => r.getCell(columna).value === etiqueta)!;
 };
 const resultado = (celda: ExcelJS.Cell) => (celda.value as ExcelJS.CellFormulaValue).result;
+
+async function descargar(ruta: string, nombre: string) {
+  const res = await request(app)
+    .get(ruta)
+    .set(auth())
+    .buffer(true)
+    .parse((r, listo) => {
+      const partes: Buffer[] = [];
+      r.on('data', (p: Buffer) => partes.push(p));
+      r.on('end', () => listo(null, Buffer.concat(partes)));
+    });
+  expect(res.status).toBe(200);
+  expect(res.headers['content-type']).toContain('spreadsheetml');
+  expect(res.headers['content-disposition']).toContain(nombre);
+  const archivo = new ExcelJS.Workbook();
+  await archivo.xlsx.load(res.body);
+  return archivo;
+}
 
 beforeAll(async () => {
   usuario = await crearUsuarioTemporal();
@@ -36,19 +54,7 @@ beforeAll(async () => {
       .send({ subcategoriaId: sub(m.sub), fecha: m.fecha, descripcion: 'Test', monto: m.monto });
   }
 
-  const res = await request(app)
-    .get('/api/excel/exportar?anio=2026')
-    .set(auth())
-    .buffer(true)
-    .parse((r, listo) => {
-      const partes: Buffer[] = [];
-      r.on('data', (p: Buffer) => partes.push(p));
-      r.on('end', () => listo(null, Buffer.concat(partes)));
-    });
-  expect(res.status).toBe(200);
-  expect(res.headers['content-type']).toContain('spreadsheetml');
-  expect(res.headers['content-disposition']).toContain('presupuesto-2026.xlsx');
-  await libro.xlsx.load(res.body);
+  libro = await descargar('/api/excel/exportar?anio=2026', 'presupuesto-2026.xlsx');
 });
 
 afterAll(async () => {
@@ -92,5 +98,45 @@ describe('exportar vista anual a Excel', () => {
   it('valida el año', async () => {
     const res = await request(app).get('/api/excel/exportar?anio=abc').set(auth());
     expect(res.status).toBe(400);
+  });
+});
+
+describe('exportar movimientos filtrados a Excel', () => {
+  const hoja = (archivo: ExcelJS.Workbook) => archivo.getWorksheet('Movimientos')!;
+  const filaDe = (archivo: ExcelJS.Workbook, etiqueta: string) =>
+    hoja(archivo).getRows(1, hoja(archivo).rowCount)!.find((r) => r.getCell(9).value === etiqueta)!;
+
+  it('exporta todos los movimientos del mes, ordenados y con totales por tipo', async () => {
+    const archivo = await descargar('/api/excel/movimientos?anio=2026&mes=1', 'movimientos-2026-01.xlsx');
+    const ws = hoja(archivo);
+
+    expect(ws.getCell('B1').value).toBe('Movimientos de Enero 2026');
+    expect(ws.getCell('B2').value).toBe('Sin filtros');
+    expect(ws.getRow(4).getCell(2).value).toBe('Fecha');
+    expect([5, 6, 7].map((n) => [ws.getCell(`C${n}`).value, ws.getCell(`D${n}`).value, ws.getCell(`J${n}`).value])).toEqual([
+      ['Gasto', 'Hogar', 1200],
+      ['Ahorro', 'Ahorros', 600],
+      ['Ingreso', 'Salarios', 4200],
+    ]);
+    expect(ws.getCell('B5').value).toEqual(new Date('2026-01-05T00:00:00Z'));
+
+    expect(filaDe(archivo, 'Ingresos').getCell(10).value).toMatchObject({ formula: 'SUMIF(C5:C7,"Ingreso",J5:J7)', result: 4200 });
+    expect(resultado(filaDe(archivo, 'Gastos').getCell(10))).toBe(1200);
+    expect(resultado(filaDe(archivo, 'Balance neto').getCell(10))).toBe(2400);
+  });
+
+  it('respeta los filtros y los describe en la hoja', async () => {
+    const archivo = await descargar('/api/excel/movimientos?anio=2026&tipo=GASTO&orden=monto_asc', 'movimientos-2026.xlsx');
+    const ws = hoja(archivo);
+
+    expect(ws.getCell('B2').value).toBe('Tipo: Gasto');
+    expect([5, 6].map((n) => ws.getCell(`J${n}`).value)).toEqual([150.25, 1200]);
+    expect(ws.getCell('J7').value).toBeNull();
+  });
+
+  it('sin movimientos: hoja vacía con totales en 0', async () => {
+    const archivo = await descargar('/api/excel/movimientos?anio=2020&mes=5', 'movimientos-2020-05.xlsx');
+    expect(filaDe(archivo, 'Ingresos').getCell(10).value).toBe(0);
+    expect(filaDe(archivo, 'Balance neto').getCell(10).value).toMatchObject({ formula: 'J6-J7-J8' });
   });
 });

@@ -1,4 +1,8 @@
 import ExcelJS from 'exceljs';
+import type { TipoMovimiento } from '../../../generated/prisma/client.ts';
+import { prisma } from '../../config/prisma.ts';
+import type { FiltrosExportar } from '../movimientos/movimientos.schemas.ts';
+import { todosLosMovimientos, totalesMovimientos } from '../movimientos/movimientos.service.ts';
 import { reporteAnual } from '../reportes/reportes.service.ts';
 
 type Reporte = Awaited<ReturnType<typeof reporteAnual>>;
@@ -9,8 +13,15 @@ const MESES = ['Ene', 'Feb', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Ago', 
 const FORMATO_MONTO = '#,##0.00';
 const PRIMARIO = 'FF00685F';
 const FONDO_ENCABEZADO = 'FFEFF4FF';
+const TEXTO_SECUNDARIO = 'FF6D7A77';
 
 const letra = (columna: number) => String.fromCharCode(64 + columna);
+
+function nuevoLibro() {
+  const libro = new ExcelJS.Workbook();
+  libro.calcProperties.fullCalcOnLoad = true;
+  return libro;
+}
 
 function titulo(hoja: ExcelJS.Worksheet, fila: number, texto: string, tamano = 18) {
   const celda = hoja.getCell(fila, 2);
@@ -28,8 +39,8 @@ function estiloEncabezado(fila: ExcelJS.Row, colMes: number, colAnio: number) {
   }
 }
 
-function estiloTotal(fila: ExcelJS.Row, colAnio: number) {
-  for (let c = 2; c <= colAnio; c++) {
+function estiloTotal(fila: ExcelJS.Row, hasta: number, desde = 2) {
+  for (let c = desde; c <= hasta; c++) {
     const celda = fila.getCell(c);
     celda.font = { bold: true };
     celda.border = { top: { style: 'thin', color: { argb: PRIMARIO } } };
@@ -127,7 +138,7 @@ function hojaResumen(hoja: ExcelJS.Worksheet, reporte: Reporte, gasto: { totalGa
 export async function exportarAnual(usuarioId: string, anio: number) {
   const reporte = await reporteAnual(usuarioId, anio);
 
-  const libro = new ExcelJS.Workbook();
+  const libro = nuevoLibro();
   const vista = { showGridLines: false };
   const resumen = libro.addWorksheet('Resumen', { views: [vista] });
   const gasto = libro.addWorksheet('Gasto', { views: [vista] });
@@ -135,4 +146,108 @@ export async function exportarAnual(usuarioId: string, anio: number) {
   hojaResumen(resumen, reporte, hojaGasto(gasto, reporte));
 
   return Buffer.from(await libro.xlsx.writeBuffer());
+}
+
+const TIPOS: Record<TipoMovimiento, string> = { INGRESO: 'Ingreso', GASTO: 'Gasto', AHORRO: 'Ahorro' };
+
+const COLUMNAS = [
+  { titulo: 'Fecha', ancho: 12 },
+  { titulo: 'Tipo', ancho: 10 },
+  { titulo: 'Categoría', ancho: 22 },
+  { titulo: 'Subcategoría', ancho: 22 },
+  { titulo: 'Descripción', ancho: 34 },
+  { titulo: 'Comercio', ancho: 20 },
+  { titulo: 'Cuenta', ancho: 14 },
+  { titulo: 'Notas', ancho: 30 },
+  { titulo: 'Monto', ancho: 14 },
+];
+
+function nombrePeriodo({ anio, mes }: FiltrosExportar) {
+  if (!anio) return { titulo: 'Movimientos', archivo: 'movimientos' };
+  if (!mes) return { titulo: `Movimientos ${anio}`, archivo: `movimientos-${anio}` };
+  const nombreMes = new Date(Date.UTC(anio, mes - 1)).toLocaleDateString('es-PE', { month: 'long', timeZone: 'UTC' });
+  return {
+    titulo: `Movimientos de ${nombreMes[0]!.toUpperCase()}${nombreMes.slice(1)} ${anio}`,
+    archivo: `movimientos-${anio}-${String(mes).padStart(2, '0')}`,
+  };
+}
+
+export async function exportarMovimientos(usuarioId: string, filtros: FiltrosExportar) {
+  const [movimientos, totales, categoria] = await Promise.all([
+    todosLosMovimientos(usuarioId, filtros),
+    totalesMovimientos(usuarioId, filtros),
+    filtros.categoriaId
+      ? prisma.categoria.findFirst({ where: { id: filtros.categoriaId, usuarioId }, select: { nombre: true } })
+      : null,
+  ]);
+  const periodo = nombrePeriodo(filtros);
+
+  const encabezado = 4;
+  const colTipo = 3;
+  const colMonto = 2 + COLUMNAS.length - 1;
+  const libro = nuevoLibro();
+  const hoja = libro.addWorksheet('Movimientos', { views: [{ state: 'frozen', ySplit: encabezado, showGridLines: false }] });
+  hoja.columns = [{ width: 2.7 }, ...COLUMNAS.map((c) => ({ width: c.ancho }))];
+
+  titulo(hoja, 1, periodo.titulo);
+  const aplicados = [
+    filtros.tipo && `Tipo: ${TIPOS[filtros.tipo]}`,
+    categoria && `Categoría: ${categoria.nombre}`,
+    filtros.q && `Búsqueda: "${filtros.q}"`,
+  ].filter(Boolean);
+  const detalle = hoja.getCell(2, 2);
+  detalle.value = aplicados.length ? aplicados.join(' · ') : 'Sin filtros';
+  detalle.font = { italic: true, color: { argb: TEXTO_SECUNDARIO } };
+
+  const filaEncabezado = hoja.getRow(encabezado);
+  COLUMNAS.forEach((c, i) => (filaEncabezado.getCell(2 + i).value = c.titulo));
+  estiloEncabezado(filaEncabezado, colMonto, colMonto);
+
+  movimientos.forEach((m, i) => {
+    const fila = hoja.getRow(encabezado + 1 + i);
+    fila.values = [
+      undefined,
+      new Date(`${m.fecha}T00:00:00Z`),
+      TIPOS[m.tipo],
+      m.subcategoria.categoria.nombre,
+      m.subcategoria.nombre,
+      m.descripcion,
+      m.comercio,
+      m.cuenta,
+      m.notas,
+      Number(m.monto),
+    ];
+    fila.getCell(2).numFmt = 'dd/mm/yyyy';
+    fila.getCell(2).alignment = { horizontal: 'left' };
+    fila.getCell(colMonto).numFmt = FORMATO_MONTO;
+  });
+
+  const ultima = encabezado + movimientos.length;
+  if (movimientos.length) {
+    hoja.autoFilter = { from: { row: encabezado, column: 2 }, to: { row: ultima, column: colMonto } };
+  }
+
+  const tipos = letra(colTipo);
+  const montos = letra(colMonto);
+  const sumaTipo = (tipo: TipoMovimiento, total: string) =>
+    movimientos.length
+      ? { formula: `SUMIF(${tipos}${encabezado + 1}:${tipos}${ultima},"${TIPOS[tipo]}",${montos}${encabezado + 1}:${montos}${ultima})`, result: Number(total) }
+      : 0;
+
+  const inicio = ultima + 2;
+  const resumen = [
+    ['Ingresos', sumaTipo('INGRESO', totales.ingresos)],
+    ['Gastos', sumaTipo('GASTO', totales.gastos)],
+    ['Ahorro', sumaTipo('AHORRO', totales.ahorro)],
+    ['Balance neto', { formula: `${montos}${inicio}-${montos}${inicio + 1}-${montos}${inicio + 2}`, result: Number(totales.balance) }],
+  ] as const;
+  resumen.forEach(([nombre, valor], i) => {
+    const fila = hoja.getRow(inicio + i);
+    fila.getCell(colMonto - 1).value = nombre;
+    fila.getCell(colMonto).value = valor;
+    fila.getCell(colMonto).numFmt = FORMATO_MONTO;
+  });
+  estiloTotal(hoja.getRow(inicio + 3), colMonto, colMonto - 1);
+
+  return { archivo: Buffer.from(await libro.xlsx.writeBuffer()), nombre: `${periodo.archivo}.xlsx` };
 }
