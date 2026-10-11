@@ -1,8 +1,8 @@
 import { Prisma, type TipoMovimiento } from '../../../generated/prisma/client.ts';
 import { prisma } from '../../config/prisma.ts';
 import type { Periodo } from '../../utils/esquemas.ts';
-import { moverMes } from '../../utils/fechas.ts';
-import { filtroMovimientos, totalesMovimientos } from '../movimientos/movimientos.service.ts';
+import { moverMes, rangoDeAlcance, type Alcance } from '../../utils/fechas.ts';
+import { filtroMovimientos, totalesEnRango } from '../movimientos/movimientos.service.ts';
 
 type Fila = { meses: Prisma.Decimal[]; total: Prisma.Decimal };
 
@@ -93,10 +93,31 @@ const variacion = (actual: string, anterior: string) => {
   return previo.isZero() ? null : Number(new Prisma.Decimal(actual).minus(previo).div(previo).times(100).toFixed(1));
 };
 
+export const kpis = async (usuarioId: string, periodo: Periodo, alcance: Alcance) => {
+  const rango = rangoDeAlcance(periodo, alcance);
+  const anterior = rangoDeAlcance(moverMes(rango.inicio, -rango.meses), alcance);
+  const [actual, previo] = await Promise.all([
+    totalesEnRango(usuarioId, rango.desde, rango.hasta),
+    totalesEnRango(usuarioId, anterior.desde, anterior.hasta),
+  ]);
+
+  return {
+    alcance,
+    inicio: rango.inicio,
+    meses: rango.meses,
+    totales: { ingresos: actual.ingresos, gastos: actual.gastos, ahorro: actual.ahorro, efectivoLibre: actual.balance },
+    variacion: {
+      ingresos: variacion(actual.ingresos, previo.ingresos),
+      gastos: variacion(actual.gastos, previo.gastos),
+      ahorro: variacion(actual.ahorro, previo.ahorro),
+      efectivoLibre: variacion(actual.balance, previo.balance),
+    },
+  };
+};
+
 export const resumenMensual = async (usuarioId: string, periodo: Periodo) => {
-  const [actual, previo, categorias, sumas] = await Promise.all([
-    totalesMovimientos(usuarioId, periodo),
-    totalesMovimientos(usuarioId, moverMes(periodo, -1)),
+  const [{ totales, variacion }, categorias, sumas] = await Promise.all([
+    kpis(usuarioId, periodo, 'mensual'),
     prisma.categoria.findMany({ where: { usuarioId }, include: { subcategorias: { select: { id: true } } } }),
     prisma.movimiento.groupBy({ by: ['subcategoriaId'], where: filtroMovimientos(usuarioId, periodo), _sum: { monto: true } }),
   ]);
@@ -124,16 +145,11 @@ export const resumenMensual = async (usuarioId: string, periodo: Periodo) => {
 
   return {
     ...periodo,
-    totales: { ingresos: actual.ingresos, gastos: actual.gastos, ahorro: actual.ahorro, efectivoLibre: actual.balance },
-    variacion: {
-      ingresos: variacion(actual.ingresos, previo.ingresos),
-      gastos: variacion(actual.gastos, previo.gastos),
-      ahorro: variacion(actual.ahorro, previo.ahorro),
-      efectivoLibre: variacion(actual.balance, previo.balance),
-    },
+    totales,
+    variacion,
     desglose: {
-      ingresos: desglose('INGRESO', actual.ingresos),
-      gastos: desglose('GASTO', actual.gastos),
+      ingresos: desglose('INGRESO', totales.ingresos),
+      gastos: desglose('GASTO', totales.gastos),
     },
   };
 };

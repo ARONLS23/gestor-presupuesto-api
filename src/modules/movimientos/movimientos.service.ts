@@ -80,10 +80,16 @@ export const listarMovimientos = async (usuarioId: string, filtros: FiltrosMovim
   return { items: items.map(aRespuesta), total, page, size, paginas: Math.ceil(total / size) };
 };
 
-export const totalesMovimientos = async (usuarioId: string, filtros: FiltrosTotales) => {
+export const totalesMovimientos = (usuarioId: string, filtros: FiltrosTotales) =>
+  totalesDe(filtroMovimientos(usuarioId, filtros));
+
+export const totalesEnRango = (usuarioId: string, desde: Date, hasta: Date) =>
+  totalesDe({ usuarioId, fecha: { gte: desde, lt: hasta } });
+
+async function totalesDe(where: Prisma.MovimientoWhereInput) {
   const grupos = await prisma.movimiento.groupBy({
     by: ['tipo'],
-    where: filtroMovimientos(usuarioId, filtros),
+    where,
     _sum: { monto: true },
     _count: true,
   });
@@ -108,7 +114,7 @@ export const totalesMovimientos = async (usuarioId: string, filtros: FiltrosTota
       total: cantidad('INGRESO') + cantidad('GASTO') + cantidad('AHORRO'),
     },
   };
-};
+}
 
 async function obtenerPropio(usuarioId: string, id: string) {
   const movimiento = await prisma.movimiento.findFirst({ where: { id, usuarioId }, select: movimientoPublico });

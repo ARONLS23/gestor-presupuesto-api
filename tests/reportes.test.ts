@@ -117,6 +117,30 @@ describe('reporte anual (fórmulas del Excel)', () => {
     expect(body.promedioAhorro).toBe('200.00');
   });
 
+  it('KPIs trimestrales: trimestre del mes frente al trimestre anterior', async () => {
+    const { body } = await request(app).get('/api/reportes/kpis?anio=2026&mes=2&alcance=trimestral').set(auth());
+
+    expect(body.inicio).toEqual({ anio: 2026, mes: 1 });
+    expect(body.totales).toEqual({ ingresos: '8700.50', gastos: '2650.00', ahorro: '600.00', efectivoLibre: '5450.50' });
+    expect(body.variacion).toMatchObject({ ingresos: null, gastos: 165.3 });
+  });
+
+  it('KPIs anuales: año completo frente al año anterior', async () => {
+    const { body } = await request(app).get('/api/reportes/kpis?anio=2026&mes=7&alcance=anual').set(auth());
+
+    expect(body.totales).toEqual({ ingresos: '8700.50', gastos: '4650.00', ahorro: '600.00', efectivoLibre: '3450.50' });
+    expect(body.variacion.gastos).toBe(365.5);
+  });
+
+  it('KPIs mensuales coinciden con el resumen mensual', async () => {
+    const kpis = (await request(app).get('/api/reportes/kpis?anio=2026&mes=2').set(auth())).body;
+    const resumen = (await request(app).get('/api/reportes/resumen-mensual?anio=2026&mes=2').set(auth())).body;
+
+    expect(kpis.alcance).toBe('mensual');
+    expect(kpis.totales).toEqual(resumen.totales);
+    expect(kpis.variacion).toEqual(resumen.variacion);
+  });
+
   it('valida el año', async () => {
     const res = await request(app).get('/api/reportes/anual?anio=abc').set(auth());
     expect(res.status).toBe(400);

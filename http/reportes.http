@@ -9,3 +9,8 @@ Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
 ### Histórico de los últimos 6 meses
 GET http://localhost:4000/api/reportes/historico?anio=2026&mes=10&meses=6
 Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
+
+
+### KPIs del trimestre (alcance: mensual, trimestral o anual)
+GET http://localhost:4000/api/reportes/kpis?anio=2026&mes=10&alcance=trimestral
+Authorization: Bearer PEGA_AQUI_EL_TOKEN_DEL_LOGIN
