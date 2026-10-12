@@ -1,3 +1,4 @@
+/// <reference path="./types/express.d.ts" />
 import express, { type Express, type Request, type Response } from 'express';
 import { manejarErrores, rutaNoEncontrada } from './middlewares/errores.ts';
 import { authRouter } from './modules/auth/auth.routes.ts';
